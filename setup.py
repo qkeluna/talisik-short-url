@@ -8,7 +8,8 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="talisik-short-url",
     version="0.1.0",
-    author="Talisik Team",
+    author="Erick Luna",
+    author_email="erick.luna@seven-gen.com",
     description="Privacy-focused URL shortener library and service",
     long_description=long_description,
     long_description_content_type="text/markdown",

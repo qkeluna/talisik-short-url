@@ -2,6 +2,8 @@
 
 A privacy-focused URL shortener built with Python and FastAPI, inspired by tnyr.me. **Now available as an npm package for JavaScript developers!**
 
+**Created by [Erick Luna](https://github.com/frederickluna)**
+
 ## 🚀 **For JavaScript/React Developers**
 
 ### **Installation (Like shadcn/ui)**
@@ -284,6 +286,13 @@ make test
 # 3. Test the npm package
 node examples/npm-package-demo.js
 ```
+
+## Author
+
+**Erick Luna**
+
+- GitHub: [@frederickluna](https://github.com/frederickluna)
+- Project: [Talisik Short URL](https://github.com/frederickluna/talisik-short-url)
 
 ## License
 

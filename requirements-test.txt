@@ -1,0 +1,14 @@
+# Production Testing Dependencies
+# Install with: pip install -r requirements-test.txt
+
+# Async HTTP client for production API testing
+aiohttp>=3.8.0
+
+# JSON handling (usually included with Python)
+# included for completeness
+
+# For enhanced testing output
+colorama>=0.4.0
+
+# Optional: For advanced HTTP testing
+requests>=2.25.0 

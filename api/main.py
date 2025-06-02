@@ -140,6 +140,28 @@ async def redirect_url(short_code: str):
     
     return RedirectResponse(url=original_url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
 
+@app.head("/{short_code}")
+async def head_redirect_url(short_code: str):
+    """HEAD request for redirect (returns redirect headers without body for client SDK expand method)"""
+    original_url = shortener.expand(short_code)
+    
+    if not original_url:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Short code '{short_code}' not found or expired"
+        )
+    
+    # Basic URL validation to prevent open redirects
+    from urllib.parse import urlparse
+    parsed = urlparse(original_url)
+    if not parsed.scheme or not parsed.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid destination URL"
+        )
+    
+    return RedirectResponse(url=original_url, status_code=status.HTTP_301_MOVED_PERMANENTLY)
+
 
 # Development server
 if __name__ == "__main__":

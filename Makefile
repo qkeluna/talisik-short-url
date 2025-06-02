@@ -80,3 +80,55 @@ demo-js:
 	@echo "Running JavaScript integration demo..."
 	@echo "Make sure API is running: make api"
 	node examples/react_demo.js 
+
+# Production Testing Commands
+.PHONY: install-test-deps test-production test-npm-client setup-react-test
+
+install-test-deps: ## Install production testing dependencies
+	@echo "📦 Installing production testing dependencies..."
+	pip install -r requirements-test.txt
+
+test-production: ## Test deployed production API (Usage: make test-production URL=https://your-app.com)
+	@if [ -z "$(URL)" ]; then \
+		echo "❌ ERROR: Please provide production URL"; \
+		echo "Usage: make test-production URL=https://your-production-url.com"; \
+		exit 1; \
+	fi
+	@echo "🚀 Testing production API at: $(URL)"
+	python test_production.py $(URL)
+
+test-npm-client: ## Test npm client SDK (Usage: make test-npm-client URL=https://your-app.com)
+	@if [ -z "$(URL)" ]; then \
+		echo "❌ ERROR: Please provide production URL"; \
+		echo "Usage: make test-npm-client URL=https://your-production-url.com"; \
+		exit 1; \
+	fi
+	@echo "📦 Installing npm client SDK..."
+	npm install talisik-shortener
+	@echo "🧪 Testing npm client SDK against: $(URL)"
+	node test_npm_client.js $(URL)
+
+setup-react-test: ## Setup React test environment
+	@echo "⚛️ Setting up React test environment..."
+	cd examples/react-test && npm install
+	@echo "✅ React test setup complete!"
+	@echo "💡 To run: cd examples/react-test && REACT_APP_API_URL=your-production-url npm run dev"
+
+test-all-production: install-test-deps ## Run all production tests (Usage: make test-all-production URL=https://your-app.com)
+	@if [ -z "$(URL)" ]; then \
+		echo "❌ ERROR: Please provide production URL"; \
+		echo "Usage: make test-all-production URL=https://your-production-url.com"; \
+		exit 1; \
+	fi
+	@echo "🎯 Running comprehensive production test suite..."
+	@echo "📊 1/3: Testing Backend API..."
+	make test-production URL=$(URL)
+	@echo ""
+	@echo "📦 2/3: Testing npm Client SDK..."
+	make test-npm-client URL=$(URL)
+	@echo ""
+	@echo "⚛️ 3/3: Setting up React test environment..."
+	make setup-react-test
+	@echo ""
+	@echo "✅ All production tests completed!"
+	@echo "🎉 Your Talisik URL shortener is ready for production use!" 

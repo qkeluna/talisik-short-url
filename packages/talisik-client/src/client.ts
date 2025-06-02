@@ -195,7 +195,7 @@ export class TalisikClient {
     options?: RequestOptions
   ): Promise<string | null> {
     try {
-      // Use HEAD request to get redirect without following it
+      // First try HEAD request to get redirect without following it
       const response = await fetch(`${this.config.baseUrl}/${shortCode}`, {
         method: "HEAD",
         headers: this.config.headers,
@@ -207,9 +207,21 @@ export class TalisikClient {
         return response.headers.get("location");
       }
 
+      // If HEAD is not supported (405) or doesn't return redirect, fall back to info endpoint
+      if (response.status === 405 || response.status === 404) {
+        const info = await this.getUrlInfo(shortCode, options);
+        return info ? info.originalUrl : null;
+      }
+
       return null;
     } catch (error) {
-      throw new TalisikError(`Failed to expand URL: ${error}`);
+      // If HEAD request fails, try using the info endpoint as fallback
+      try {
+        const info = await this.getUrlInfo(shortCode, options);
+        return info ? info.originalUrl : null;
+      } catch (infoError) {
+        throw new TalisikError(`Failed to expand URL: ${error}`);
+      }
     }
   }
 

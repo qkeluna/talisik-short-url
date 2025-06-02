@@ -1,0 +1,17 @@
+# Talisik Short URL - Production Dependencies
+# Generated for deployment to leapcell.io and other hosting platforms
+
+# Core dependencies
+pydantic>=2.0.0,<3.0.0
+python-dotenv>=1.0.0,<2.0.0
+xata>=1.0.0,<2.0.0
+
+# FastAPI and web server dependencies
+fastapi>=0.100.0,<1.0.0
+uvicorn[standard]>=0.20.0,<1.0.0
+
+# HTTP client for testing (used in our test files)
+requests>=2.28.0,<3.0.0
+
+# Additional production dependencies
+typing-extensions>=4.0.0  # For Python 3.9 compatibility 

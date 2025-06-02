@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 import uvicorn
+import os
 
 from talisik.core.shortener import URLShortener
 from talisik.core.models import ShortenRequest
@@ -17,24 +18,18 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Add CORS middleware for React integration
+# Dynamic CORS configuration for custom domain support
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8080,http://127.0.0.1:3000,http://127.0.0.1:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # Create React App default
-        "http://localhost:5173",  # Vite default
-        "http://localhost:8080",  # Vue CLI default
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=[origin.strip() for origin in cors_origins],  # Support downlodr.com
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-import os
-
-# Initialize URL shortener (in production, this would use persistent storage)
+# Initialize URL shortener with dynamic base URL (supports custom domain)
 base_url = os.getenv("BASE_URL", "http://localhost:8000")
 shortener = URLShortener(base_url=base_url)
 
@@ -82,6 +77,13 @@ async def shorten_url(request: ShortenUrlRequest):
         # Use our library to shorten
         result = shortener.shorten(lib_request)
         
+        # Check if the operation was successful
+        if not result.success:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result.error or "Failed to shorten URL"
+            )
+        
         return ShortenUrlResponse(
             short_url=result.short_url,
             original_url=result.original_url,
@@ -89,16 +91,19 @@ async def shorten_url(request: ShortenUrlRequest):
             expires_at=result.expires_at.isoformat() if result.expires_at else None
         )
         
-    except ValueError as e:
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
         )
 
 @app.get("/api/stats")
 async def get_stats():
     """Get basic statistics"""
-    return shortener.stats()
+    return shortener.get_stats()
 
 @app.get("/info/{short_code}")
 async def get_url_info(short_code: str):

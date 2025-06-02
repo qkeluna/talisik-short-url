@@ -10,6 +10,9 @@ xata>=1.0.0,<2.0.0
 fastapi>=0.100.0,<1.0.0
 uvicorn[standard]>=0.20.0,<1.0.0
 
+# Gunicorn for production deployment (required by some hosting platforms)
+gunicorn>=21.0.0,<22.0.0
+
 # HTTP client for testing (used in our test files)
 requests>=2.28.0,<3.0.0
 

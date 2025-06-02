@@ -1,0 +1,30 @@
+# Leapcell.io configuration for Talisik Short URL
+name: talisik-short-url
+runtime: python3.11
+
+# Build configuration
+build:
+  commands:
+    - pip install --no-cache-dir -r requirements.txt
+
+# Run configuration
+run:
+  command: gunicorn -w 1 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --timeout 600 api.main:app
+
+# Environment variables (set these in Leapcell.io dashboard)
+env:
+  BASE_URL: https://your-app-url.leapcell.io # Update this after deployment
+  STORAGE_BACKEND: xata
+  DEBUG: false
+  LOG_LEVEL: WARNING
+  ENVIRONMENT: production
+
+# Health check
+health_check:
+  path: /
+  timeout: 30
+
+# Scaling
+scaling:
+  min_instances: 1
+  max_instances: 3

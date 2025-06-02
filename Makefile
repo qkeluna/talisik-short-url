@@ -1,6 +1,6 @@
 # Talisik Short URL - Development Commands
 
-.PHONY: venv install test lint format clean dev help api test-api
+.PHONY: venv install test lint format clean dev help api test-api demo-js
 
 # Create virtual environment
 venv:
@@ -60,24 +60,23 @@ dev: install test
 
 # Show help
 help:
-	@echo "Talisik Short URL - Development Commands"
+	@echo "Talisik Short URL - Available Commands:"
 	@echo ""
-	@echo "First time setup:"
-	@echo "  make setup          - Create venv and install everything"
-	@echo ""
-	@echo "Daily development (with activated venv):"
-	@echo "  source venv/bin/activate  - Activate virtual environment"
-	@echo "  make dev            - Install deps and run tests"
-	@echo "  make test           - Run unit tests with coverage"
-	@echo "  make api            - Start FastAPI server on port 8000"
-	@echo "  make test-api       - Test API endpoints"
-	@echo "  make lint           - Check code quality"
+	@echo "  make venv           - Create virtual environment"
+	@echo "  make install        - Install dependencies" 
+	@echo "  make test           - Run tests"
+	@echo "  make test-coverage  - Run tests with coverage report"
+	@echo "  make lint           - Run code linting"
 	@echo "  make format         - Format code"
-	@echo ""
-	@echo "Interactive testing:"
-	@echo "  python cli_demo.py  - Interactive CLI demo"
-	@echo "  python test_demo.py - Automated library demo"
-	@echo ""
-	@echo "Cleanup:"
+	@echo "  make dev            - Start development environment"
+	@echo "  make api            - Start API server"
+	@echo "  make test-api       - Test API endpoints"
+	@echo "  make demo-js        - Run JavaScript/React integration demo"
 	@echo "  make clean          - Remove build artifacts"
-	@echo "  make clean-all      - Remove everything including venv" 
+	@echo "  make clean-all      - Remove everything including venv"
+
+# Run JavaScript/React integration demo
+demo-js:
+	@echo "Running JavaScript integration demo..."
+	@echo "Make sure API is running: make api"
+	node examples/react_demo.js 

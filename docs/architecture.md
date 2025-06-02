@@ -2,491 +2,594 @@
 
 ## Overview
 
-Talisik Short URL follows a modular, library-first architecture designed for maximum flexibility and maintainability. The system is built around a core library that can be used standalone or extended with various interfaces (API, Web, CLI).
+Talisik Short URL follows a **Client SDK + Backend Service** architecture designed for maximum developer adoption and business scalability. The system provides a complete developer ecosystem with a Python backend service and an npm package client, similar to Firebase, Supabase, and Auth0.
 
 > 📊 **Visual Workflows**: For detailed visual representations of how the URL shortener works, including flowcharts and sequence diagrams, see [Workflow Diagrams](workflow-diagram.md).
 
 ## Architectural Principles
 
-### 1. Library-First Design
+### 1. Developer-First Design
 
-- **Core functionality** is implemented as a pure Python library
-- **No external dependencies** for basic operations (library mode)
-- **Clean API** for embedding in other applications
-- **Pluggable backends** for different storage needs
+- **npm Package Client**: Easy installation via `npm install talisik-shortener`
+- **Multiple Framework Support**: React, Vue, Next.js, Svelte, Node.js
+- **TypeScript-First**: Complete type safety and IntelliSense support
+- **Zero Configuration**: Works out of the box with sensible defaults
 
-### 2. Separation of Concerns
+### 2. Service-Oriented Architecture
 
-- **Core Logic**: URL shortening and expansion algorithms
-- **Data Models**: Type-safe data structures using dataclasses
-- **Storage Layer**: Abstracted persistence with multiple implementations
-- **Interface Layer**: APIs, Web UI, and CLI as separate concerns
+- **Backend Service**: Python FastAPI server that you host/deploy
+- **Client SDK**: JavaScript/TypeScript package that developers install
+- **Clean API**: RESTful HTTP API with comprehensive OpenAPI documentation
+- **Multi-tenant Ready**: API key authentication for different applications
 
-### 3. Kaizen Development Philosophy
+### 3. Business Model Architecture
+
+- **Open Source Core**: Python library and API server (GitHub)
+- **Developer SDK**: npm package for easy integration (npmjs.com)
+- **Hosted Service**: You provide the backend service (SaaS model)
+- **Self-Hosted Option**: Developers can also self-host your backend
+
+### 4. Kaizen Development Philosophy
 
 - **Incremental complexity**: Start simple, add features progressively
 - **Test-driven**: Each component has comprehensive test coverage
-- **Refactoring-friendly**: Clean code that's easy to modify
+- **Developer Experience**: Focus on ease of use and integration
 - **Documentation-first**: Every component is well-documented
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Interface Layer                          │
-├─────────────────┬─────────────────┬─────────────────────────┤
-│   Web UI        │   REST API      │      CLI Tool           │
-│  (React/TS)     │   (FastAPI)     │     (Click/Typer)       │
-└─────────────────┴─────────────────┴─────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────────┐
-│                   Core Library                              │
-├─────────────────────────────────────────────────────────────┤
-│                 URLShortener                                │
-│           (Main Business Logic)                             │
-├─────────────────────────────────────────────────────────────┤
-│     Models         │      Storage Interface                 │
-│  - ShortURL        │   - AbstractStorage                    │
-│  - ShortenRequest  │   - get/set/delete                     │
-│  - ShortenResponse │   - list/expire                        │
-└─────────────────────────────────────────────────────────────┘
-                          │
-┌─────────────────────────────────────────────────────────────┐
-│                Storage Implementations                      │
-├─────────────────┬─────────────────┬─────────────────────────┤
-│   Memory        │     SQLite      │        Redis            │
-│  (Current)      │    (Planned)    │      (Planned)          │
-│                 │                 │                         │
-│ - In-memory     │ - File-based    │ - Distributed           │
-│ - Fast          │ - Persistent    │ - High-performance      │
-│ - Non-persistent│ - ACID          │ - TTL support           │
-└─────────────────┴─────────────────┴─────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Developer Applications                             │
+├─────────────────┬─────────────────┬─────────────────┬─────────────────────────┤
+│   React App     │   Vue App       │   Next.js App   │    Node.js Backend      │
+│                 │                 │                 │                         │
+│ npm install     │ npm install     │ npm install     │ npm install             │
+│ talisik-        │ talisik-        │ talisik-        │ talisik-shortener       │
+│ shortener       │ shortener       │ shortener       │                         │
+└─────────────────┴─────────────────┴─────────────────┴─────────────────────────┘
+                                    │
+                          HTTP Requests (REST API)
+                                    │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     npm Package (talisik-shortener)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  • TalisikClient (Core API client)                                         │
+│  • React Hooks (useTalisik, useTalisikClient)                              │
+│  • TypeScript Types (Complete type definitions)                            │
+│  • Error Handling (Custom error classes)                                   │
+│  • Factory Functions (createTalisikClient, createDevClient)                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                            HTTPS API Calls
+                                    │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Your Hosted Backend Service                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                     FastAPI REST API Server                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  Endpoints:                                                         │   │
+│  │  • POST /shorten      - Create short URL                           │   │
+│  │  • GET /{code}        - Redirect to original URL                   │   │
+│  │  • GET /info/{code}   - Get URL metadata and analytics             │   │
+│  │  • GET /api/stats     - Get usage statistics                       │   │
+│  │  • DELETE /api/{code} - Delete short URL                           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                       Core Python Library                                  │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  • URLShortener (Main business logic)                              │   │
+│  │  • ShortURL, ShortenRequest, ShortenResponse (Data models)         │   │
+│  │  • Code generation and validation                                  │   │
+│  │  • Expiration and analytics logic                                  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                        Storage Layer                                       │
+│  ┌─────────────────┬─────────────────┬─────────────────────────────────┐   │
+│  │   Memory        │     SQLite      │        Redis/PostgreSQL        │   │
+│  │  (Current)      │    (Planned)    │         (Planned)               │   │
+│  │                 │                 │                                 │   │
+│  │ - Development   │ - Small/Medium  │ - Production Scale              │   │
+│  │ - Fast          │ - Persistent    │ - High Performance              │   │
+│  │ - Non-persistent│ - File-based    │ - Distributed                   │   │
+│  └─────────────────┴─────────────────┴─────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Component Architecture
+## Client SDK Architecture (`packages/talisik-client`)
 
-### Core Library (`talisik/`)
+### 1. TalisikClient Class
 
-#### 1. URLShortener Class
+**Location**: `packages/talisik-client/src/client.ts`
 
-**Location**: `talisik/core/shortener.py`
+**Core Methods**:
 
-**Responsibilities**:
+```typescript
+// URL Shortening
+async shorten(request: ShortenRequest): Promise<ShortenResponse>
 
-- Main entry point for URL shortening operations
-- Orchestrates validation, code generation, and storage
-- Handles business logic for expiration and analytics
+// URL Information
+async getUrlInfo(shortCode: string): Promise<UrlInfo | null>
+async expand(shortCode: string): Promise<string | null>
+getRedirectUrl(shortCode: string): string
 
-**Key Methods**:
-
-```python
-def shorten(request: ShortenRequest) -> ShortenResponse
-def expand(short_code: str) -> Optional[str]
-```
-
-**Design Patterns**:
-
-- **Facade Pattern**: Simplifies complex operations behind a clean interface
-- **Strategy Pattern**: Pluggable storage backends (future)
-- **Factory Pattern**: Code generation strategies (future)
-
-#### 2. Data Models
-
-**Location**: `talisik/core/models.py`
-
-**Components**:
-
-- `ShortURL`: Core entity representing a shortened URL with metadata
-- `ShortenRequest`: Input model for shortening operations
-- `ShortenResponse`: Output model with generated URLs and metadata
-
-**Design Decisions**:
-
-- **Dataclasses**: Simple, type-safe, and lightweight
-- **Immutable where possible**: Reduces side effects
-- **Optional fields**: Support for future features without breaking changes
-
-#### 3. Storage Layer (Current: In-Memory)
-
-**Location**: Currently embedded in `URLShortener`
-
-**Current Implementation**:
-
-```python
-self._urls: dict[str, ShortURL] = {}
-```
-
-**Future Architecture**:
-
-```python
-class AbstractStorage(ABC):
-    @abstractmethod
-    def get(self, short_code: str) -> Optional[ShortURL]
-
-    @abstractmethod
-    def set(self, short_code: str, url: ShortURL) -> None
-
-    @abstractmethod
-    def delete(self, short_code: str) -> bool
-
-    @abstractmethod
-    def list_expired(self) -> List[str]
-```
-
-### Interface Layer (Planned)
-
-#### 1. REST API Service
-
-**Technology**: FastAPI + Uvicorn
-**Location**: `api/` (planned)
-
-**Endpoints**:
-
-```
-POST /shorten     - Create short URL
-GET  /{code}      - Redirect to original URL
-GET  /api/{code}  - Get URL metadata
-DELETE /api/{code} - Delete short URL
-GET  /health      - Health check
+// Analytics
+async getStats(): Promise<Stats>
 ```
 
 **Features**:
 
-- OpenAPI/Swagger documentation
-- Request validation with Pydantic
-- Rate limiting and security headers
-- CORS support for web integration
+- ✅ **Request/Response Transformation**: Converts camelCase ↔ snake_case
+- ✅ **Error Handling**: Custom error classes with network detection
+- ✅ **Timeout Support**: Configurable request timeouts with AbortController
+- ✅ **Custom Headers**: Authentication and custom header support
+- ✅ **TypeScript Support**: Complete type definitions and IntelliSense
 
-#### 2. Web Interface
+### 2. React Integration
 
-**Technology**: React + TypeScript + Vite + ShadCN/UI
-**Location**: `web/` (planned)
+**Location**: `packages/talisik-client/src/hooks.ts`
 
-**Components**:
+**Hooks Available**:
 
-- URL shortening form
-- Results display with copy functionality
-- Basic analytics dashboard
-- Responsive design for mobile/desktop
+```typescript
+// High-level hook with state management
+const { shortenUrl, getUrlInfo, getStats, loading, error } = useTalisik({
+  baseUrl: "https://api.talisik.com",
+});
 
-#### 3. CLI Tool
+// Low-level client hook
+const client = useTalisikClient({
+  baseUrl: "https://api.talisik.com",
+});
+```
 
-**Technology**: Click or Typer
-**Location**: `cli/` (planned)
+**Features**:
 
-**Commands**:
+- ✅ **Runtime React Detection**: Works without React dependency
+- ✅ **Loading States**: Built-in loading and error state management
+- ✅ **Error Boundaries**: Proper error propagation to React components
+- ✅ **Memoization**: Optimized re-renders with useMemo and useCallback
 
-```bash
-talisik shorten <url>
-talisik expand <code>
-talisik list
-talisik config
+### 3. TypeScript Definitions
+
+**Location**: `packages/talisik-client/src/types.ts`
+
+**Core Types**:
+
+```typescript
+// Configuration
+interface TalisikConfig {
+  baseUrl: string;
+  apiKey?: string;
+  headers?: Record<string, string>;
+  timeout?: number;
+}
+
+// Request/Response Types
+interface ShortenRequest {
+  url: string;
+  customCode?: string | null;
+  expiresHours?: number | null;
+}
+
+interface ShortenResponse {
+  shortUrl: string;
+  originalUrl: string;
+  shortCode: string;
+  expiresAt?: string | null;
+}
+
+// Analytics Types
+interface UrlInfo {
+  shortCode: string;
+  originalUrl: string;
+  createdAt: string;
+  expiresAt?: string | null;
+  clickCount: number;
+  isActive: boolean;
+  isExpired: boolean;
+}
+```
+
+### 4. Error Handling Architecture
+
+**Location**: `packages/talisik-client/src/errors.ts`
+
+**Error Hierarchy**:
+
+```typescript
+class TalisikError extends Error {
+  // Base error class with status codes and details
+}
+
+class TalisikConfigError extends TalisikError {
+  // Configuration and setup errors
+}
+
+class TalisikValidationError extends TalisikError {
+  // Input validation errors
+}
+```
+
+**Error Detection Methods**:
+
+```typescript
+error.isNetworkError(); // Network connectivity issues
+error.isClientError(); // 4xx HTTP status codes
+error.isServerError(); // 5xx HTTP status codes
+error.isTimeout(); // Request timeout errors
+```
+
+### 5. Factory Functions
+
+**Location**: `packages/talisik-client/src/factory.ts`
+
+**Convenience Functions**:
+
+```typescript
+// Standard client
+const client = createTalisikClient({ baseUrl: "https://api.talisik.com" });
+
+// Development environment
+const devClient = createDevClient();
+
+// Production environment
+const prodClient = createProdClient("https://api.talisik.com");
+```
+
+## Backend Service Architecture
+
+### 1. FastAPI REST API
+
+**Location**: `api/main.py`
+
+**Current Endpoints**:
+
+```python
+POST /shorten              # Create short URL
+GET  /{short_code}         # Redirect to original URL
+GET  /info/{short_code}    # Get URL metadata
+GET  /api/stats           # Get usage statistics
+```
+
+**Features**:
+
+- ✅ **CORS Support**: Configured for React development (ports 3000, 5173)
+- ✅ **OpenAPI Documentation**: Auto-generated Swagger docs
+- ✅ **Pydantic Validation**: Request/response validation
+- ✅ **Error Handling**: Consistent error responses
+
+### 2. Core Library Integration
+
+**Location**: `talisik/core/shortener.py`
+
+The FastAPI endpoints wrap the core URLShortener class:
+
+```python
+from talisik.core.shortener import URLShortener
+
+app = FastAPI()
+shortener = URLShortener()
+
+@app.post("/shorten")
+async def shorten_url(request: ShortenURLRequest):
+    result = shortener.shorten(request)
+    return result
 ```
 
 ## Data Flow Architecture
 
-### URL Shortening Flow
+### 1. URL Shortening Flow
 
 ```
-1. User Input → ShortenRequest
-2. URLShortener.shorten()
-   ├─ Validate URL
-   ├─ Generate/validate short code
-   ├─ Create ShortURL entity
-   ├─ Store in backend
-   └─ Return ShortenResponse
-3. Response → User Interface
+Developer App (React/Vue/etc.)
+    ↓
+npm package: client.shorten({ url: 'https://example.com' })
+    ↓
+HTTP POST to: https://your-server.com/shorten
+    ↓
+FastAPI endpoint receives request
+    ↓
+Core URLShortener.shorten() processes
+    ↓
+Storage backend saves URL mapping
+    ↓
+Response: { shortUrl: 'https://your-server.com/abc123' }
+    ↓
+npm package returns typed ShortenResponse
+    ↓
+Developer app displays result to user
 ```
 
-### URL Expansion Flow
+### 2. URL Expansion/Redirect Flow
 
 ```
-1. Short Code → URLShortener.expand()
-2. Storage lookup
-3. Expiration check
-4. Analytics update
-5. Return original URL or None
+User clicks: https://your-server.com/abc123
+    ↓
+Browser makes GET request
+    ↓
+FastAPI endpoint /{short_code}
+    ↓
+Core URLShortener.expand() lookups
+    ↓
+Analytics update (click count)
+    ↓
+HTTP 301/302 Redirect Response
+    ↓
+Browser redirects to original URL
 ```
 
-## Storage Architecture
-
-### Current: In-Memory Storage
-
-**Pros**:
-
-- Zero dependencies
-- Maximum performance
-- Simple implementation
-- Perfect for testing and development
-
-**Cons**:
-
-- No persistence across restarts
-- Limited by available RAM
-- No distributed support
-
-### Planned: SQLite Storage
-
-**Use Cases**:
-
-- Development and small deployments
-- File-based persistence needed
-- ACID transactions required
-
-**Schema**:
-
-```sql
-CREATE TABLE short_urls (
-    id TEXT PRIMARY KEY,
-    original_url TEXT NOT NULL,
-    short_code TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP,
-    click_count INTEGER DEFAULT 0,
-    is_active BOOLEAN DEFAULT 1
-);
-
-CREATE INDEX idx_short_code ON short_urls(short_code);
-CREATE INDEX idx_expires_at ON short_urls(expires_at);
-```
-
-### Planned: Redis Storage
-
-**Use Cases**:
-
-- High-performance requirements
-- Distributed deployments
-- Built-in TTL support needed
-
-**Data Structure**:
+### 3. Analytics Flow
 
 ```
-Key: "url:{short_code}"
-Value: JSON serialized ShortURL object
-TTL: Automatic expiration support
-```
-
-## Security Architecture
-
-### Input Validation
-
-- **URL Validation**: Comprehensive parsing and validation
-- **Short Code Validation**: Pattern matching and sanitization
-- **Request Size Limits**: Prevent abuse through large payloads
-
-### Code Generation Security
-
-- **Cryptographically Secure**: Using `secrets` module
-- **Collision Resistant**: 7-character codes = 62^7 ≈ 3.5 trillion combinations
-- **No Predictable Patterns**: True random generation
-
-### Privacy Protection
-
-- **Minimal Data Collection**: Only essential metadata stored
-- **No User Tracking**: No IP logging or user identification
-- **Configurable Analytics**: Optional click counting
-- **Data Retention**: Automatic expiration support
-
-### API Security (Planned)
-
-- **Rate Limiting**: Prevent abuse and DoS attacks
-- **CORS Configuration**: Controlled cross-origin access
-- **Input Sanitization**: Comprehensive request validation
-- **Security Headers**: HSTS, CSP, and other protective headers
-
-## Performance Architecture
-
-### Core Library Performance
-
-- **O(1) Operations**: Hash-based lookups for URL expansion
-- **Memory Efficient**: Minimal object overhead with dataclasses
-- **CPU Optimized**: Efficient algorithms for code generation
-- **Thread Safety**: Planned support for concurrent access
-
-### Caching Strategy (Planned)
-
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   L1 Cache  │    │   L2 Cache  │    │  Storage    │
-│  (Memory)   │    │   (Redis)   │    │ (SQLite)    │
-│             │    │             │    │             │
-│ Hot URLs    │ → │ Warm URLs   │ → │ All URLs    │
-│ <1ms        │    │ <10ms       │    │ <100ms      │
-└─────────────┘    └─────────────┘    └─────────────┘
-```
-
-### Scalability Considerations
-
-- **Horizontal Scaling**: Redis backend supports multiple instances
-- **Load Balancing**: Stateless design enables easy load distribution
-- **Database Sharding**: Short code-based partitioning strategy
-- **CDN Integration**: Static assets and redirect caching
-
-## Error Handling Architecture
-
-### Exception Hierarchy
-
-```python
-class TalisikError(Exception):
-    """Base exception for all Talisik errors"""
-
-class ValidationError(TalisikError):
-    """Invalid input provided"""
-
-class StorageError(TalisikError):
-    """Storage backend failure"""
-
-class ConflictError(TalisikError):
-    """Short code already exists"""
-```
-
-### Error Recovery Strategies
-
-- **Graceful Degradation**: Continue operation with reduced functionality
-- **Retry Logic**: Automatic retry for transient failures
-- **Circuit Breaker**: Prevent cascade failures in distributed setup
-- **Fallback Mechanisms**: Alternative code generation on conflicts
-
-## Testing Architecture
-
-### Test Structure
-
-```
-tests/
-├── unit/                 # Unit tests for individual components
-│   ├── test_shortener.py # Core functionality tests
-│   ├── test_models.py    # Data model tests
-│   └── test_storage.py   # Storage backend tests
-├── integration/          # Integration tests
-│   ├── test_api.py       # API endpoint tests
-│   └── test_e2e.py       # End-to-end scenarios
-└── performance/          # Performance and load tests
-    ├── test_load.py      # Load testing
-    └── test_bench.py     # Benchmarking
-```
-
-### Test Coverage Strategy
-
-- **Unit Tests**: >95% coverage for core library
-- **Integration Tests**: All API endpoints and workflows
-- **Property-Based Testing**: Edge cases and input validation
-- **Performance Tests**: Latency and throughput benchmarks
-
-## Configuration Architecture
-
-### Library Configuration
-
-```python
-@dataclass
-class TalisikConfig:
-    base_url: str = "http://localhost:3000"
-    default_code_length: int = 7
-    max_custom_code_length: int = 50
-    storage_backend: str = "memory"
-    enable_analytics: bool = True
-```
-
-### Environment-Based Configuration
-
-```python
-# Development
-TALISIK_BASE_URL=http://localhost:3000
-TALISIK_STORAGE=memory
-
-# Production
-TALISIK_BASE_URL=https://short.example.com
-TALISIK_STORAGE=redis://redis:6379/0
+Developer App requests analytics
+    ↓
+npm package: client.getUrlInfo('abc123')
+    ↓
+HTTP GET to: https://your-server.com/info/abc123
+    ↓
+FastAPI returns URL metadata
+    ↓
+npm package returns typed UrlInfo
+    ↓
+Developer app displays analytics
 ```
 
 ## Deployment Architecture
 
-### Development Deployment
+### 1. npm Package Distribution
 
-- **Local Development**: In-memory storage, FastAPI dev server
-- **Testing**: SQLite storage, pytest with coverage
-- **Docker Compose**: Multi-service development environment
+**Build Process**:
 
-### Production Deployment
-
-```yaml
-# docker-compose.yml
-services:
-  api:
-    image: talisik/api:latest
-    environment:
-      - TALISIK_STORAGE=redis://redis:6379/0
-
-  web:
-    image: talisik/web:latest
-    environment:
-      - API_URL=http://api:8000
-
-  redis:
-    image: redis:alpine
-    volumes:
-      - redis_data:/data
+```bash
+cd packages/talisik-client
+npm run build    # Creates dist/ with ESM + CommonJS builds
+npm publish      # Publishes to npmjs.com
 ```
 
-### Cloud Deployment Options
+**Developer Installation**:
 
-- **Container Platforms**: Docker, Kubernetes, Cloud Run
-- **Serverless**: AWS Lambda, Vercel Functions (for API)
-- **Static Hosting**: Netlify, Vercel (for Web UI)
-- **Database**: Managed Redis, RDS, or embedded SQLite
+```bash
+npm install talisik-shortener
+```
 
-## Monitoring and Observability
+**Package Contents**:
 
-### Metrics Collection (Planned)
+- `dist/index.js` - CommonJS build
+- `dist/index.esm.js` - ES Modules build
+- `dist/index.d.ts` - TypeScript declarations
+- `README.md` - Usage documentation
+- Package size: ~15.6 kB (excellent for npm package)
 
-- **Performance Metrics**: Response times, throughput, error rates
-- **Business Metrics**: URLs created, clicks, popular domains
-- **System Metrics**: Memory usage, storage size, cache hit rates
+### 2. Backend Service Deployment
 
-### Logging Strategy
+**Development**:
 
-- **Structured Logging**: JSON format for easy parsing
-- **Log Levels**: DEBUG, INFO, WARN, ERROR with appropriate usage
-- **Privacy**: No sensitive data in logs (URLs, user info)
-- **Retention**: Configurable log retention policies
+```bash
+# Local development with hot reload
+uvicorn api.main:app --reload --port 8000
+```
 
-### Health Checks
+**Production Options**:
 
-```python
-GET /health
-{
-    "status": "healthy",
-    "timestamp": "2024-01-15T10:30:00Z",
-    "version": "0.1.0",
-    "storage": {
-        "type": "redis",
-        "status": "connected",
-        "latency_ms": 2.3
-    }
+- **Railway**: Simple git-based deployment
+- **Vercel**: Serverless Python functions
+- **Docker**: Container-based deployment
+- **AWS/GCP/Azure**: Traditional cloud hosting
+- **Self-hosted**: VPS or dedicated servers
+
+**Environment Configuration**:
+
+```env
+# Production
+TALISIK_BASE_URL=https://api.talisik.com
+TALISIK_STORAGE=redis://redis:6379/0
+CORS_ORIGINS=https://myapp.com,https://anotherapp.com
+
+# Development
+TALISIK_BASE_URL=http://localhost:8000
+TALISIK_STORAGE=memory
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+## Business Model Architecture
+
+### 1. Developer Adoption Strategy
+
+**Free Tier**:
+
+- npm package always free
+- Self-hosting option available
+- Open source core library
+
+**Hosted Service Tiers**:
+
+- **Starter**: 1,000 URLs/month, basic analytics
+- **Pro**: 10,000 URLs/month, advanced analytics, custom domains
+- **Enterprise**: Unlimited URLs, priority support, SLA
+
+### 2. Monetization Paths
+
+**SaaS Model**:
+
+- Monthly subscriptions for hosted service
+- Usage-based pricing for high-volume customers
+- Premium features (custom domains, analytics, etc.)
+
+**Enterprise**:
+
+- On-premises deployment consulting
+- Custom feature development
+- Priority support contracts
+
+### 3. Competitive Positioning
+
+**vs. TinyURL/Bit.ly**:
+
+- ✅ Developer-first with npm package
+- ✅ Self-hosted option for privacy
+- ✅ Full API control and customization
+
+**vs. Firebase/Supabase**:
+
+- ✅ Specialized for URL shortening use case
+- ✅ Simpler integration
+- ✅ Lower cost for URL shortening needs
+
+## Security Architecture
+
+### 1. Client-Side Security
+
+**Input Validation**:
+
+- URL validation before sending to server
+- Custom code sanitization
+- Request size limits
+
+**API Security**:
+
+- HTTPS enforcement
+- API key authentication
+- Request timeout protection
+- CORS policy enforcement
+
+### 2. Server-Side Security
+
+**Authentication**:
+
+- API key-based authentication
+- Rate limiting per API key
+- Request origin validation
+
+**Data Protection**:
+
+- No sensitive data in logs
+- Configurable data retention
+- Optional click tracking
+- Privacy-focused defaults
+
+### 3. Infrastructure Security
+
+**Network Security**:
+
+- HTTPS/TLS encryption
+- Security headers (HSTS, CSP)
+- DDoS protection via CloudFlare
+
+**Data Security**:
+
+- Encrypted storage options
+- Regular backups
+- Access logging and monitoring
+
+## Performance Architecture
+
+### 1. Client Performance
+
+**npm Package Optimization**:
+
+- Tree-shakeable exports
+- Minimal bundle size (15.6 kB)
+- ESM + CommonJS dual builds
+- TypeScript for compile-time optimization
+
+**Network Optimization**:
+
+- Request deduplication
+- Configurable timeouts
+- Retry logic for failed requests
+- Compression support
+
+### 2. Server Performance
+
+**API Performance**:
+
+- FastAPI's high performance (comparable to NodeJS)
+- Async/await throughout
+- Minimal response payload
+- Efficient JSON serialization
+
+**Storage Performance**:
+
+- O(1) URL lookups
+- Memory-based caching
+- Future: Redis for distributed caching
+- Database indexing strategies
+
+### 3. Scalability Strategy
+
+**Horizontal Scaling**:
+
+- Stateless API design
+- Load balancer-friendly
+- Database sharding by short code
+- CDN for static assets
+
+**Caching Strategy**:
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Browser   │    │   API Cache │    │  Database   │
+│   Cache     │    │   (Redis)   │    │ (Postgres)  │
+│             │    │             │    │             │
+│ 5min TTL    │ → │ 1hr TTL     │ → │ Persistent  │
+│ Redirects   │    │ URL lookups │    │ Storage     │
+└─────────────┘    └─────────────┘    └─────────────┘
+```
+
+## Future Architecture Evolution
+
+### 1. Advanced Analytics
+
+**Planned Features**:
+
+- Geographic click tracking
+- Referrer analytics
+- Custom event tracking
+- Real-time dashboards
+
+**Architecture**:
+
+```typescript
+// Enhanced analytics in npm package
+interface DetailedAnalytics {
+  clicks: ClickEvent[];
+  geoData: GeographicData;
+  referrers: ReferrerData;
+  timeSeriesData: TimeSeriesData;
 }
 ```
 
-## Future Architecture Considerations
+### 2. Enterprise Features
 
-### Microservices Evolution
+**Multi-tenant Architecture**:
 
-- **URL Service**: Core shortening functionality
-- **Analytics Service**: Click tracking and reporting
-- **Admin Service**: Management and configuration
-- **Notification Service**: Alerts and monitoring
+- Organization-based API keys
+- Team collaboration features
+- Custom domain support
+- White-label solutions
 
-### API Gateway Integration
+**Advanced Security**:
 
-- **Rate Limiting**: Centralized rate limiting policies
-- **Authentication**: OAuth2/JWT integration
-- **Load Balancing**: Intelligent request routing
-- **Caching**: Response caching at gateway level
+- OAuth2 integration
+- SAML authentication
+- Audit logging
+- Compliance features (GDPR, etc.)
 
-### Event-Driven Architecture
+### 3. Platform Expansion
 
-```
-URL Created → Analytics Event → Metrics Update
-URL Clicked → Analytics Event → Dashboard Update
-URL Expired → Cleanup Event → Storage Cleanup
-```
+**Additional Language SDKs**:
 
-This architecture provides a solid foundation for the current implementation while enabling smooth evolution toward more complex deployments and features as the project grows following Kaizen principles.
+- Python SDK (for backend applications)
+- Go SDK (for microservices)
+- PHP SDK (for legacy applications)
+- Mobile SDKs (React Native, Flutter)
+
+**Integration Ecosystem**:
+
+- Zapier integrations
+- Webhook support
+- Third-party analytics integration
+- CMS plugins (WordPress, etc.)
+
+This architecture provides a solid foundation for the current implementation while enabling smooth evolution toward more complex deployments and features as the project grows following Kaizen principles, with a strong focus on developer adoption through the npm package ecosystem.

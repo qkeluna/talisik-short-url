@@ -3,7 +3,7 @@
 import secrets
 import string
 from datetime import datetime, timedelta, UTC
-from typing import Optional
+from typing import Optional, Dict, Any
 from urllib.parse import urlparse
 
 from .models import ShortURL, ShortenRequest, ShortenResponse
@@ -80,6 +80,39 @@ class URLShortener:
         short_url.click_count += 1
         
         return short_url.original_url
+    
+    def get_info(self, short_code: str) -> Optional[Dict[str, Any]]:
+        """
+        Get information about a short URL without redirecting
+        
+        Provides proper encapsulation and uniform expiration checking
+        """
+        if short_code not in self._urls:
+            return None
+        
+        url_obj = self._urls[short_code]
+        
+        return {
+            "short_code": short_code,
+            "original_url": url_obj.original_url,
+            "created_at": url_obj.created_at.isoformat(),
+            "expires_at": url_obj.expires_at.isoformat() if url_obj.expires_at else None,
+            "click_count": url_obj.click_count,
+            "is_active": url_obj.is_active,
+            "is_expired": url_obj.expires_at and datetime.now(UTC) > url_obj.expires_at if url_obj.expires_at else False
+        }
+    
+    def stats(self) -> Dict[str, Any]:
+        """
+        Get basic statistics about all URLs
+        
+        Provides proper encapsulation for statistics access
+        """
+        return {
+            "total_urls": len(self._urls),
+            "active_urls": sum(1 for url in self._urls.values() if url.is_active),
+            "total_clicks": sum(url.click_count for url in self._urls.values())
+        }
     
     def _generate_code(self, length: int = 7) -> str:
         """Generate a random short code"""

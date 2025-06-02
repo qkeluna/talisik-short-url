@@ -6,7 +6,8 @@ from pydantic import BaseModel, HttpUrl
 from typing import Optional
 import uvicorn
 
-from talisik import URLShortener, ShortenRequest
+from talisik.core.shortener import URLShortener
+from talisik.core.models import ShortenRequest
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -15,8 +16,11 @@ app = FastAPI(
     version="0.1.0",
 )
 
+import os
+
 # Initialize URL shortener (in production, this would use persistent storage)
-shortener = URLShortener(base_url="http://localhost:8000")
+base_url = os.getenv("BASE_URL", "http://localhost:8000")
+shortener = URLShortener(base_url=base_url)
 
 
 # Pydantic models for API
@@ -78,31 +82,20 @@ async def shorten_url(request: ShortenUrlRequest):
 @app.get("/api/stats")
 async def get_stats():
     """Get basic statistics"""
-    return {
-        "total_urls": len(shortener._urls),
-        "active_urls": sum(1 for url in shortener._urls.values() if url.is_active),
-        "total_clicks": sum(url.click_count for url in shortener._urls.values())
-    }
+    return shortener.stats()
 
 @app.get("/info/{short_code}")
 async def get_url_info(short_code: str):
     """Get information about a short URL without redirecting"""
-    if short_code not in shortener._urls:
+    info = shortener.get_info(short_code)
+    
+    if not info:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Short code '{short_code}' not found"
         )
     
-    url_obj = shortener._urls[short_code]
-    
-    return {
-        "short_code": short_code,
-        "original_url": url_obj.original_url,
-        "created_at": url_obj.created_at.isoformat(),
-        "expires_at": url_obj.expires_at.isoformat() if url_obj.expires_at else None,
-        "click_count": url_obj.click_count,
-        "is_active": url_obj.is_active
-    }
+    return info
 
 @app.get("/{short_code}")
 async def redirect_url(short_code: str):
@@ -113,6 +106,15 @@ async def redirect_url(short_code: str):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Short code '{short_code}' not found or expired"
+        )
+    
+    # Basic URL validation to prevent open redirects
+    from urllib.parse import urlparse
+    parsed = urlparse(original_url)
+    if not parsed.scheme or not parsed.netloc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid destination URL"
         )
     
     return RedirectResponse(url=original_url, status_code=status.HTTP_301_MOVED_PERMANENTLY)

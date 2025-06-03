@@ -162,6 +162,29 @@ export class TalisikClient {
   }
 
   /**
+   * Get all shortened URLs for table display
+   *
+   * @param options - Additional request options
+   * @returns Promise that resolves to array of URL records
+   *
+   * @example
+   * ```typescript
+   * const urls = await client.getAllUrls();
+   * console.log(`Found ${urls.length} URLs`);
+   * ```
+   */
+  async getAllUrls(options?: RequestOptions): Promise<any[]> {
+    const response = await this.request<any>(
+      "GET",
+      "/api/urls",
+      undefined,
+      options
+    );
+
+    return response.urls || [];
+  }
+
+  /**
    * Get the redirect URL for a short code (without following the redirect)
    *
    * @param shortCode - The short code

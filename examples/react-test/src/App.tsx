@@ -3,12 +3,12 @@ import { TalisikClient } from "talisik-shortener";
 import "./App.css";
 
 // Replace with your production URL
-const API_URL =
-  process.env.REACT_APP_API_URL || "https://your-production-url.com";
+const API_URL = "https://talisik-short-url-qkeluna8941-ktpw2srp.leapcell.dev";
 
 interface ShortenedUrl {
   shortCode: string;
   shortUrl: string;
+  customDomainUrl: string;
   originalUrl: string;
   clicks?: number;
   createdAt?: string;
@@ -18,6 +18,15 @@ interface TestResult {
   test: string;
   status: "PASS" | "FAIL" | "RUNNING";
   details: string;
+}
+
+interface UrlTableRow {
+  original_url: string;
+  short_code: string;
+  expires_at: string | null;
+  click_count: number;
+  is_active: boolean;
+  created_at: string;
 }
 
 function App() {
@@ -35,10 +44,13 @@ function App() {
   } | null>(null);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [runningTests, setRunningTests] = useState(false);
+  const [urlTable, setUrlTable] = useState<UrlTableRow[]>([]);
+  const [loadingTable, setLoadingTable] = useState(false);
 
-  // Load stats on component mount
+  // Load stats and table data on component mount
   useEffect(() => {
     loadStats();
+    loadUrlTable();
   }, []);
 
   const loadStats = async () => {
@@ -50,6 +62,18 @@ function App() {
     }
   };
 
+  const loadUrlTable = async () => {
+    setLoadingTable(true);
+    try {
+      const urlsData = await client.getAllUrls();
+      setUrlTable(urlsData);
+    } catch (err) {
+      console.error("Failed to load URL table:", err);
+    } finally {
+      setLoadingTable(false);
+    }
+  };
+
   const handleShorten = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -57,11 +81,16 @@ function App() {
 
     try {
       const options = customCode ? { customCode } : undefined;
-      const result = await client.shorten(url, options);
+      const result = await client.shorten({ url, ...options });
+
+      // Debug log to check what the API returns
+      console.log("API Response:", result);
+      console.log("Using API_URL:", API_URL);
 
       const newUrl: ShortenedUrl = {
         shortCode: result.shortCode,
-        shortUrl: result.shortUrl,
+        shortUrl: `${API_URL}/${result.shortCode}`,
+        customDomainUrl: `https://downlodr.com/${result.shortCode}`,
         originalUrl: url,
       };
 
@@ -69,6 +98,7 @@ function App() {
       setUrl("");
       setCustomCode("");
       await loadStats(); // Refresh stats
+      await loadUrlTable(); // Refresh table data
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to shorten URL");
     } finally {
@@ -78,14 +108,16 @@ function App() {
 
   const handleExpand = async (shortCode: string) => {
     try {
-      const info = await client.getInfo(shortCode);
-      setShortenedUrls((prev) =>
-        prev.map((url) =>
-          url.shortCode === shortCode
-            ? { ...url, clicks: info.clicks, createdAt: info.createdAt }
-            : url
-        )
-      );
+      const info = await client.getUrlInfo(shortCode);
+      if (info) {
+        setShortenedUrls((prev) =>
+          prev.map((url) =>
+            url.shortCode === shortCode
+              ? { ...url, clicks: info.clickCount, createdAt: info.createdAt }
+              : url
+          )
+        );
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to get URL info");
     }
@@ -106,7 +138,7 @@ function App() {
     // Test 1: Basic Shortening
     addTestResult("Basic URL Shortening", "RUNNING", "Testing...");
     try {
-      const result = await client.shorten("https://example.com/test");
+      const result = await client.shorten({ url: "https://example.com/test" });
       addTestResult(
         "Basic URL Shortening",
         "PASS",
@@ -124,7 +156,8 @@ function App() {
     addTestResult("Custom Code Shortening", "RUNNING", "Testing...");
     try {
       const customTestCode = `test-${Date.now()}`;
-      const result = await client.shorten("https://example.com/custom", {
+      const result = await client.shorten({
+        url: "https://example.com/custom",
         customCode: customTestCode,
       });
       if (result.shortCode === customTestCode) {
@@ -154,11 +187,11 @@ function App() {
       // Use first shortened URL if available
       if (shortenedUrls.length > 0) {
         const result = await client.expand(shortenedUrls[0].shortCode);
-        addTestResult(
-          "URL Expansion",
-          "PASS",
-          `Original: ${result.originalUrl}`
-        );
+        if (result) {
+          addTestResult("URL Expansion", "PASS", `Original: ${result}`);
+        } else {
+          addTestResult("URL Expansion", "FAIL", "No URL returned");
+        }
       } else {
         addTestResult("URL Expansion", "FAIL", "No URLs available to test");
       }
@@ -190,7 +223,7 @@ function App() {
     // Test 5: Error Handling
     addTestResult("Error Handling", "RUNNING", "Testing...");
     try {
-      await client.shorten("invalid-url");
+      await client.shorten({ url: "invalid-url" });
       addTestResult("Error Handling", "FAIL", "Should have thrown an error");
     } catch (err) {
       addTestResult("Error Handling", "PASS", "Properly rejects invalid URLs");
@@ -253,6 +286,224 @@ function App() {
           </section>
         )}
 
+        {/* URL Table */}
+        <section className="table-section">
+          <h3>📋 URL List</h3>
+          {loadingTable ? (
+            <div className="loading">Loading table data...</div>
+          ) : (
+            <div className="table-container">
+              <table className="url-table">
+                <thead>
+                  <tr>
+                    <th>Original URL</th>
+                    <th>Short Code</th>
+                    <th>Expires At</th>
+                    <th>Clicks</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {urlTable.map((row, index) => (
+                    <tr key={index}>
+                      <td className="url-cell" title={row.original_url}>
+                        {row.original_url.length > 50
+                          ? `${row.original_url.substring(0, 50)}...`
+                          : row.original_url}
+                      </td>
+                      <td className="code-cell">
+                        <span className="short-code">{row.short_code}</span>
+                      </td>
+                      <td className="expires-cell">
+                        {row.expires_at ? (
+                          new Date(row.expires_at).toLocaleDateString()
+                        ) : (
+                          <span className="no-expiry">No expiry</span>
+                        )}
+                      </td>
+                      <td className="clicks-cell">
+                        <span className="click-count">{row.click_count}</span>
+                      </td>
+                      <td className="status-cell">
+                        <span
+                          className={`status ${
+                            row.is_active ? "active" : "inactive"
+                          }`}
+                        >
+                          {row.is_active ? "✅ Active" : "❌ Inactive"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {urlTable.length === 0 && (
+                <div className="empty-table">No URLs found</div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* Demo URLs Section */}
+        <section className="urls-section">
+          <h3>🔗 Demo URLs (Production Examples)</h3>
+          <p
+            style={{ marginBottom: "1rem", color: "#666", fontSize: "0.9rem" }}
+          >
+            These are example URLs from your production environment. Click the
+            info button to test the expand functionality.
+          </p>
+          <div className="urls-list">
+            {/* First Demo - NDPOBoE */}
+            <div className="url-item">
+              <div className="url-info">
+                {/* Custom Domain URL */}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <span
+                    className="short-url"
+                    style={{ color: "#f39c12", fontSize: "1.1rem" }}
+                    title="Custom domain (available after CNAME setup)"
+                  >
+                    https://downlodr.com/NDPOBoE
+                  </span>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#f39c12",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    🎯 Custom domain format
+                  </div>
+                </div>
+
+                {/* Production URL */}
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <a
+                    href={`${API_URL}/NDPOBoE`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="short-url"
+                    style={{ fontSize: "1.1rem" }}
+                  >
+                    {API_URL}/NDPOBoE
+                  </a>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#27ae60",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    ✅ Production URL (working now) - 1 click
+                  </div>
+                </div>
+
+                {/* Original URL */}
+                <div className="original-url" style={{ marginTop: "0.75rem" }}>
+                  https://docs.google.com/spreadsheets/d/1nmt7x6_z6TcOkJpzVbmPAz6Bh2teS3F5a628Ug6HEHM/edit?usp=sharing
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await client.expand("NDPOBoE");
+                    if (result) {
+                      alert(`✅ Expand successful!\nOriginal URL: ${result}`);
+                    } else {
+                      alert("❌ No URL found");
+                    }
+                  } catch (err) {
+                    alert(
+                      `❌ Error: ${
+                        err instanceof Error ? err.message : "Unknown error"
+                      }`
+                    );
+                  }
+                }}
+                className="info-btn"
+                title="Test expand functionality"
+              >
+                🔄
+              </button>
+            </div>
+
+            {/* Second Demo - X3qhq1a */}
+            <div className="url-item">
+              <div className="url-info">
+                {/* Custom Domain URL */}
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <span
+                    className="short-url"
+                    style={{ color: "#f39c12", fontSize: "1.1rem" }}
+                    title="Custom domain (available after CNAME setup)"
+                  >
+                    https://downlodr.com/X3qhq1a
+                  </span>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#f39c12",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    🎯 Custom domain format
+                  </div>
+                </div>
+
+                {/* Production URL */}
+                <div style={{ marginBottom: "0.5rem" }}>
+                  <a
+                    href={`${API_URL}/X3qhq1a`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="short-url"
+                    style={{ fontSize: "1.1rem" }}
+                  >
+                    {API_URL}/X3qhq1a
+                  </a>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#27ae60",
+                      marginTop: "0.25rem",
+                    }}
+                  >
+                    ✅ Production URL (working now) - 2 clicks
+                  </div>
+                </div>
+
+                {/* Original URL */}
+                <div className="original-url" style={{ marginTop: "0.75rem" }}>
+                  https://github.com/frederickluna/talisik-short-url
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const result = await client.expand("X3qhq1a");
+                    if (result) {
+                      alert(`✅ Expand successful!\nOriginal URL: ${result}`);
+                    } else {
+                      alert("❌ No URL found");
+                    }
+                  } catch (err) {
+                    alert(
+                      `❌ Error: ${
+                        err instanceof Error ? err.message : "Unknown error"
+                      }`
+                    );
+                  }
+                }}
+                className="info-btn"
+                title="Test expand functionality"
+              >
+                🔄
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Shortened URLs */}
         {shortenedUrls.length > 0 && (
           <section className="urls-section">
@@ -261,15 +512,56 @@ function App() {
               {shortenedUrls.map((item, index) => (
                 <div key={index} className="url-item">
                   <div className="url-info">
-                    <a
-                      href={item.shortUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="short-url"
+                    {/* Custom Domain URL */}
+                    <div style={{ marginBottom: "0.75rem" }}>
+                      <span
+                        className="short-url"
+                        style={{ color: "#f39c12", fontSize: "1.1rem" }}
+                        title="Custom domain (available after CNAME setup)"
+                      >
+                        {item.customDomainUrl}
+                      </span>
+                      <div
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "#f39c12",
+                          marginTop: "0.25rem",
+                        }}
+                      >
+                        🎯 Custom domain format
+                      </div>
+                    </div>
+
+                    {/* Production URL */}
+                    <div style={{ marginBottom: "0.5rem" }}>
+                      <a
+                        href={item.shortUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="short-url"
+                        style={{ fontSize: "1.1rem" }}
+                      >
+                        {item.shortUrl}
+                      </a>
+                      <div
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "#27ae60",
+                          marginTop: "0.25rem",
+                        }}
+                      >
+                        ✅ Production URL (working now)
+                      </div>
+                    </div>
+
+                    {/* Original URL */}
+                    <div
+                      className="original-url"
+                      style={{ marginTop: "0.75rem" }}
                     >
-                      {item.shortUrl}
-                    </a>
-                    <div className="original-url">{item.originalUrl}</div>
+                      {item.originalUrl}
+                    </div>
+
                     {item.clicks !== undefined && (
                       <div className="clicks">👆 {item.clicks} clicks</div>
                     )}

@@ -13,7 +13,7 @@ run:
 
 # Environment variables (set these in Leapcell.io dashboard)
 env:
-  BASE_URL: https://your-app-url.leapcell.io # Update this after deployment
+  BASE_URL: https://talisik-short-url-qkeluna8941-ktpw2srp.leapcell.dev # Production Leapcell URL
   STORAGE_BACKEND: xata
   DEBUG: false
   LOG_LEVEL: WARNING

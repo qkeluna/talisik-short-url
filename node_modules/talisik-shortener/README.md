@@ -4,7 +4,9 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-Compatible-blue.svg)](https://reactjs.org/)
 
-The official JavaScript/TypeScript client for [Talisik URL Shortener](https://github.com/your-username/talisik-short-url) - a privacy-focused URL shortening service.
+The official JavaScript/TypeScript client for [Talisik URL Shortener](https://github.com/frederickluna/talisik-short-url) - a privacy-focused URL shortening service.
+
+**Created by [Erick Luna](https://github.com/frederickluna)**
 
 ## 🚀 Quick Start
 
@@ -367,7 +369,7 @@ This client works with the Talisik URL Shortener Python API. To set up your own 
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/your-username/talisik-short-url
+   git clone https://github.com/frederickluna/talisik-short-url
    cd talisik-short-url
    ```
 
@@ -386,7 +388,7 @@ This client works with the Talisik URL Shortener Python API. To set up your own 
    });
    ```
 
-For production deployment, see the [deployment guide](https://github.com/your-username/talisik-short-url#deployment).
+For production deployment, see the [deployment guide](https://github.com/frederickluna/talisik-short-url#deployment).
 
 ## 🔗 Related Packages
 
@@ -409,17 +411,24 @@ import type {
 } from "talisik-shortener";
 ```
 
+## 👤 Author
+
+**Erick Luna**
+
+- GitHub: [@frederickluna](https://github.com/frederickluna)
+- Project: [Talisik Short URL](https://github.com/frederickluna/talisik-short-url)
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please see our [Contributing Guide](https://github.com/your-username/talisik-short-url/blob/main/CONTRIBUTING.md).
+Contributions are welcome! Please see our [Contributing Guide](https://github.com/frederickluna/talisik-short-url/blob/main/CONTRIBUTING.md).
 
 ## 📄 License
 
-MIT License - see [LICENSE](https://github.com/your-username/talisik-short-url/blob/main/LICENSE) file for details.
+MIT License - see [LICENSE](https://github.com/frederickluna/talisik-short-url/blob/main/LICENSE) file for details.
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/your-username/talisik-short-url)
-- [API Documentation](https://github.com/your-username/talisik-short-url/blob/main/docs/API.md)
-- [Examples](https://github.com/your-username/talisik-short-url/tree/main/examples)
-- [Issues](https://github.com/your-username/talisik-short-url/issues)
+- [GitHub Repository](https://github.com/frederickluna/talisik-short-url)
+- [API Documentation](https://github.com/frederickluna/talisik-short-url/blob/main/docs/API.md)
+- [Examples](https://github.com/frederickluna/talisik-short-url/tree/main/examples)
+- [Issues](https://github.com/frederickluna/talisik-short-url/issues)

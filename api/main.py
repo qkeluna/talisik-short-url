@@ -105,6 +105,19 @@ async def get_stats():
     """Get basic statistics"""
     return shortener.get_stats()
 
+@app.get("/api/urls")
+async def get_all_urls():
+    """Get list of all shortened URLs for table display"""
+    try:
+        # Get all URLs from storage - we'll add this method to URLShortener
+        urls = shortener.get_all_urls()
+        return {"urls": urls}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get URLs: {str(e)}"
+        )
+
 @app.get("/info/{short_code}")
 async def get_url_info(short_code: str):
     """Get information about a short URL without redirecting"""

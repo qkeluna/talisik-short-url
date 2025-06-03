@@ -3,7 +3,7 @@
 import secrets
 import string
 from datetime import datetime, timedelta, UTC
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 import logging
 
@@ -213,4 +213,17 @@ class URLShortener:
         Returns:
             Dict with total_urls, active_urls, total_clicks
         """
-        return self.storage.get_stats() 
+        return self.storage.get_stats()
+    
+    def get_all_urls(self) -> List[Dict[str, Any]]:
+        """
+        Get all shortened URLs for table display
+        
+        Returns:
+            List of URL objects with selected fields for table
+        """
+        try:
+            return self.storage.get_all_urls()
+        except Exception as e:
+            logger.error(f"Error getting all URLs: {e}")
+            return [] 

@@ -1,7 +1,7 @@
 """Storage backend implementations for Talisik Short URL service"""
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, List
+from typing import Optional, Dict, Any, List
 from datetime import datetime, UTC
 import logging
 import uuid
@@ -44,6 +44,11 @@ class AbstractStorage(ABC):
     def get_stats(self) -> Dict[str, int]:
         """Get basic statistics about stored URLs"""
         pass
+    
+    @abstractmethod
+    def get_all_urls(self) -> List[Dict[str, Any]]:
+        """Get all URLs for table display"""
+        pass
 
 
 class MemoryStorage(AbstractStorage):
@@ -84,6 +89,21 @@ class MemoryStorage(AbstractStorage):
             "active_urls": sum(1 for url in self._urls.values() if url.is_active),
             "total_clicks": sum(url.click_count for url in self._urls.values())
         }
+    
+    def get_all_urls(self) -> List[Dict[str, Any]]:
+        """Get all URLs for table display with specified columns"""
+        urls = []
+        for url_obj in self._urls.values():
+            urls.append({
+                "original_url": url_obj.original_url,
+                "short_code": url_obj.short_code,
+                "expires_at": url_obj.expires_at.isoformat() if url_obj.expires_at else None,
+                "click_count": url_obj.click_count,
+                "is_active": url_obj.is_active,
+                "created_at": url_obj.created_at.isoformat()
+            })
+        # Sort by created_at desc (newest first)
+        return sorted(urls, key=lambda x: x["created_at"], reverse=True)
 
 
 class XataStorage(AbstractStorage):
@@ -256,6 +276,33 @@ class XataStorage(AbstractStorage):
         except Exception as e:
             logger.error(f"Error getting stats: {e}")
             return {"total_urls": 0, "active_urls": 0, "total_clicks": 0}
+    
+    def get_all_urls(self) -> List[Dict[str, Any]]:
+        """Get all URLs for table display with specified columns"""
+        try:
+            # Use SQL to get all URLs with only the required columns
+            result = self.client.sql().query(
+                "SELECT original_url, short_code, expires_at, click_count, is_active, created_at FROM short_urls ORDER BY created_at DESC"
+            )
+            
+            if result and result.get("records"):
+                urls = []
+                for record in result["records"]:
+                    urls.append({
+                        "original_url": record["original_url"],
+                        "short_code": record["short_code"],
+                        "expires_at": record["expires_at"],
+                        "click_count": record.get("click_count", 0),
+                        "is_active": record.get("is_active", True),
+                        "created_at": record["created_at"]
+                    })
+                return urls
+            
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error getting all URLs: {e}")
+            return []
     
     def _record_to_short_url(self, record: Dict) -> ShortURL:
         """Convert SQL query result to ShortURL object"""

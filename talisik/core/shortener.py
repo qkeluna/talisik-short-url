@@ -157,7 +157,7 @@ class URLShortener:
                 return None
             
             # Check if expired
-            if short_url.expires_at and datetime.now() > short_url.expires_at:
+            if short_url.expires_at and datetime.now(UTC) > short_url.expires_at:
                 logger.debug(f"Short code expired: {short_code}")
                 return None
             
@@ -195,7 +195,7 @@ class URLShortener:
                 "expires_at": url_obj.expires_at.isoformat() if url_obj.expires_at else None,
                 "click_count": url_obj.click_count,
                 "is_active": url_obj.is_active,
-                "is_expired": url_obj.expires_at and datetime.now() > url_obj.expires_at if url_obj.expires_at else False
+                "is_expired": url_obj.expires_at and datetime.now(UTC) > url_obj.expires_at if url_obj.expires_at else False
             }
             
         except Exception as e:

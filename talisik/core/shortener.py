@@ -2,6 +2,8 @@
 
 import secrets
 import string
+import base64
+import json
 from datetime import datetime, timedelta, UTC
 from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
@@ -36,6 +38,60 @@ class URLShortener:
         self.storage = storage or create_storage(self.config)
         
         logger.info(f"URLShortener initialized with {type(self.storage).__name__} storage backend")
+
+    def _modify_downlodr_url(self, url: str, expires_at: Optional[datetime]) -> str:
+        """
+        Modify downlodr.com URLs to replace createdAt with expires_at in shareId
+        
+        Args:
+            url: Original URL to potentially modify
+            expires_at: Expiration datetime to use instead of createdAt
+            
+        Returns:
+            Modified URL or original URL if not a downlodr.com share-video URL
+        """
+        try:
+            # Check if this is a downlodr.com share-video URL
+            if "downlodr.com/share-video/?shareId=" not in url:
+                return url
+            
+            # If no expiration date, return original URL
+            if not expires_at:
+                return url
+            
+            # Extract shareId from URL
+            share_id_start = url.find("shareId=") + 8
+            encoded_share_id = url[share_id_start:]
+            
+            # Decode the shareId (base64 decode)
+            try:
+                decoded_payload = base64.b64decode(encoded_share_id).decode('utf-8')
+                payload = json.loads(decoded_payload)
+                
+                # Replace createdAt with expires_at
+                payload['expiresAt'] = expires_at.isoformat()
+                
+                # Re-encode the payload
+                new_encoded_payload = base64.b64encode(
+                    json.dumps({
+                        "url": payload['url'],
+                        "expiresAt": payload['expiresAt'],
+                    }).encode('utf-8')
+                ).decode('utf-8')
+                
+                # Reconstruct the URL
+                modified_url = f"https://downlodr.com/share-video/?shareId={new_encoded_payload}"
+                
+                logger.debug(f"Modified downlodr URL: replaced createdAt with expires_at")
+                return modified_url
+                
+            except (json.JSONDecodeError, base64.binascii.Error) as decode_error:
+                logger.warning(f"Failed to decode shareId, using original URL: {decode_error}")
+                return url
+                
+        except Exception as e:
+            logger.error(f"Error modifying downlodr URL: {e}")
+            return url
     
     def shorten(self, request: ShortenRequest) -> ShortenResponse:
         """
@@ -48,6 +104,14 @@ class URLShortener:
             if not self._is_valid_url(request.url):
                 return ShortenResponse.error_response("Invalid URL provided", original_url=request.url)
             
+            # Calculate expiration date first (only once!)
+            expires_at = None
+            if request.expires_hours:
+                expires_at = datetime.now() + timedelta(hours=request.expires_hours)
+            
+            # Modify downlodr URLs if needed
+            modified_url = self._modify_downlodr_url(request.url, expires_at)
+
             # Generate short code
             short_code = request.custom_code or self._generate_code()
             
@@ -55,17 +119,12 @@ class URLShortener:
             if self.storage.exists(short_code):
                 return ShortenResponse.error_response(f"Short code '{short_code}' already exists", original_url=request.url)
             
-            # Calculate expiration
-            expires_at = None
-            if request.expires_hours:
-                expires_at = datetime.now(UTC) + timedelta(hours=request.expires_hours)
-            
-            # Create short URL object
+            # Create short URL object using modified URL
             short_url_obj = ShortURL(
                 id=secrets.token_urlsafe(16),  # Will be overridden by Xata if using XataStorage
-                original_url=request.url,
+                original_url=modified_url,  # Use modified URL
                 short_code=short_code,
-                created_at=datetime.now(UTC),
+                created_at=datetime.now(),
                 expires_at=expires_at
             )
             
@@ -75,7 +134,7 @@ class URLShortener:
             
             return ShortenResponse.success_response(
                 short_url=f"{self.base_url}/{short_code}",
-                original_url=request.url,
+                original_url=modified_url,  # ✅ Return modified URL
                 short_code=short_code,
                 expires_at=expires_at
             )
@@ -98,7 +157,7 @@ class URLShortener:
                 return None
             
             # Check if expired
-            if short_url.expires_at and datetime.now(UTC) > short_url.expires_at:
+            if short_url.expires_at and datetime.now() > short_url.expires_at:
                 logger.debug(f"Short code expired: {short_code}")
                 return None
             
@@ -136,7 +195,7 @@ class URLShortener:
                 "expires_at": url_obj.expires_at.isoformat() if url_obj.expires_at else None,
                 "click_count": url_obj.click_count,
                 "is_active": url_obj.is_active,
-                "is_expired": url_obj.expires_at and datetime.now(UTC) > url_obj.expires_at if url_obj.expires_at else False
+                "is_expired": url_obj.expires_at and datetime.now() > url_obj.expires_at if url_obj.expires_at else False
             }
             
         except Exception as e:
@@ -160,7 +219,7 @@ class URLShortener:
         Delete a short URL
         
         New functionality enabled by storage abstraction
-        """
+        """ 
         try:
             result = self.storage.delete(short_code)
             if result:

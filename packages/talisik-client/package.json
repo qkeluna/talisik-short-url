@@ -1,6 +1,6 @@
 {
   "name": "talisik-shortener",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "JavaScript/TypeScript client for Talisik URL Shortener - A privacy-focused URL shortening service",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",

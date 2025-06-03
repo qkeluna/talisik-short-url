@@ -3,7 +3,11 @@ import { TalisikClient } from "talisik-shortener";
 import "./App.css";
 
 // Replace with your production URL
-const API_URL = "https://talisik-short-url-qkeluna8941-ktpw2srp.leapcell.dev";
+// const API_URL = "https://talisik-short-url-qkeluna8941-ktpw2srp.leapcell.dev";
+const API_URL = "https://go.downlodr.com"; // Custom subdomain (safer than root domain)
+
+// Fallback for testing during domain setup:
+// const API_URL = "https://talisik-short-url-qkeluna8941-ktpw2srp.leapcell.dev";
 
 interface ShortenedUrl {
   shortCode: string;
@@ -35,6 +39,7 @@ function App() {
     "https://github.com/frederickluna/talisik-short-url"
   );
   const [customCode, setCustomCode] = useState("");
+  const [expiresHours, setExpiresHours] = useState("");
   const [shortenedUrls, setShortenedUrls] = useState<ShortenedUrl[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +85,10 @@ function App() {
     setError(null);
 
     try {
-      const options = customCode ? { customCode } : undefined;
+      const options: any = {};
+      if (customCode) options.customCode = customCode;
+      if (expiresHours) options.expiresHours = parseInt(expiresHours);
+
       const result = await client.shorten({ url, ...options });
 
       // Debug log to check what the API returns
@@ -97,6 +105,7 @@ function App() {
       setShortenedUrls((prev) => [newUrl, ...prev]);
       setUrl("");
       setCustomCode("");
+      setExpiresHours("");
       await loadStats(); // Refresh stats
       await loadUrlTable(); // Refresh table data
     } catch (err) {
@@ -229,6 +238,46 @@ function App() {
       addTestResult("Error Handling", "PASS", "Properly rejects invalid URLs");
     }
 
+    // Test 6: URL with Expiration
+    addTestResult("URL Expiration", "RUNNING", "Testing...");
+    try {
+      const result = await client.shorten({
+        url: "https://example.com/expires",
+        expiresHours: 24,
+      });
+
+      // Get URL info to check expiration
+      const info = await client.getUrlInfo(result.shortCode);
+      if (info && info.expiresAt) {
+        const expiresAt = new Date(info.expiresAt);
+        const now = new Date();
+        const hoursUntilExpiry =
+          (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+        if (hoursUntilExpiry > 23 && hoursUntilExpiry <= 24) {
+          addTestResult(
+            "URL Expiration",
+            "PASS",
+            `Expires in ${Math.round(hoursUntilExpiry)} hours`
+          );
+        } else {
+          addTestResult(
+            "URL Expiration",
+            "FAIL",
+            `Expiration time incorrect: ${Math.round(hoursUntilExpiry)} hours`
+          );
+        }
+      } else {
+        addTestResult("URL Expiration", "FAIL", "No expiration info found");
+      }
+    } catch (err) {
+      addTestResult(
+        "URL Expiration",
+        "FAIL",
+        err instanceof Error ? err.message : "Unknown error"
+      );
+    }
+
     setRunningTests(false);
   };
 
@@ -261,6 +310,15 @@ function App() {
                 placeholder="Custom code (optional)"
                 disabled={loading}
               />
+              <input
+                type="number"
+                value={expiresHours}
+                onChange={(e) => setExpiresHours(e.target.value)}
+                placeholder="Expires in hours (e.g. 24)"
+                min="1"
+                max="8760"
+                disabled={loading}
+              />
               <button type="submit" disabled={loading || !url}>
                 {loading ? "Shortening..." : "Shorten"}
               </button>
@@ -288,7 +346,24 @@ function App() {
 
         {/* URL Table */}
         <section className="table-section">
-          <h3>📋 URL List</h3>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "1rem",
+            }}
+          >
+            <h3>📋 URL List</h3>
+            <button
+              onClick={loadUrlTable}
+              disabled={loadingTable}
+              className="refresh-btn"
+              title="Refresh URL list"
+            >
+              {loadingTable ? "⏳ Refreshing..." : "🔄 Refresh"}
+            </button>
+          </div>
           {loadingTable ? (
             <div className="loading">Loading table data...</div>
           ) : (

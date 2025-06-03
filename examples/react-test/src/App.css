@@ -386,6 +386,16 @@ body {
   .info-btn {
     align-self: flex-end;
   }
+
+  /* Table header on mobile */
+  .table-section h3 {
+    font-size: 1.1rem;
+  }
+
+  .refresh-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+  }
 }
 
 .test-result.fail {
@@ -509,4 +519,32 @@ body {
   text-align: center;
   padding: 2rem;
   color: #666;
+}
+
+/* Refresh Button */
+.refresh-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.refresh-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }

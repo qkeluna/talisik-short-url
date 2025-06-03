@@ -30,7 +30,7 @@ import { TalisikClient } from "talisik-shortener";
 
 // Create a client instance
 const client = new TalisikClient({
-  baseUrl: "https://api.yourdomain.com",
+  baseUrl: "https://go.downlodr.com", // Your custom subdomain
 });
 
 // Shorten a URL
@@ -38,7 +38,7 @@ const result = await client.shorten({
   url: "https://example.com",
 });
 
-console.log(result.shortUrl); // https://api.yourdomain.com/abc123
+console.log(result.shortUrl); // https://go.downlodr.com/abc123
 ```
 
 ## 📖 Usage Examples
@@ -350,6 +350,48 @@ const redirectUrl = client.getRedirectUrl("abc123");
 **Returns**: `string`
 
 ## 🔧 Configuration
+
+### Custom Domain Setup
+
+To use your own domain for the URL shortener:
+
+**⚠️ Important**: If you already have a website at your root domain, use a **subdomain** to avoid breaking your existing site.
+
+#### **Option 1: Subdomain (Recommended for existing websites)**
+
+```
+# DNS Configuration
+Record Type: A
+Name: go (creates go.yourdomain.com)
+Value: your-platform-ip-address
+
+# Results in URLs like: https://go.yourdomain.com/abc123
+```
+
+#### **Option 2: Root Domain (Only if domain is unused)**
+
+```
+# DNS Configuration
+Record Type: A
+Name: @ (uses root domain)
+Value: your-platform-ip-address
+
+# Results in URLs like: https://yourdomain.com/abc123
+```
+
+**Platform Configuration**: In your hosting platform (Leapcell, Vercel, etc.):
+
+1. Add the custom domain/subdomain
+2. Configure route rules to point to your service
+3. Enable SSL certificate
+
+**Update your client**:
+
+```typescript
+const client = new TalisikClient({
+  baseUrl: "https://go.yourdomain.com", // Your subdomain
+});
+```
 
 ### Environment Variables
 

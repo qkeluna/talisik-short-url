@@ -104,11 +104,11 @@ class URLShortener:
             if not self._is_valid_url(request.url):
                 return ShortenResponse.error_response("Invalid URL provided", original_url=request.url)
             
-            # Calculate expiration date first (only once!)
+            # Calculate expiration date
             expires_at = None
             if request.expires_hours:
-                expires_at = datetime.now() + timedelta(hours=request.expires_hours)
-            
+                expires_at = datetime.now(UTC) + timedelta(milliseconds=request.expires_hours)
+
             # Modify downlodr URLs if needed
             modified_url = self._modify_downlodr_url(request.url, expires_at)
 
@@ -134,7 +134,7 @@ class URLShortener:
             
             return ShortenResponse.success_response(
                 short_url=f"{self.base_url}/{short_code}",
-                original_url=modified_url,  # ✅ Return modified URL
+                original_url=modified_url,
                 short_code=short_code,
                 expires_at=expires_at
             )
@@ -150,12 +150,13 @@ class URLShortener:
         
         Enhanced with persistent storage and better error handling
         """
+
         try:
             short_url = self.storage.get(short_code)
             if not short_url:
                 logger.debug(f"Short code not found: {short_code}")
                 return None
-            
+                
             # Check if expired
             if short_url.expires_at and datetime.now(UTC) > short_url.expires_at:
                 logger.debug(f"Short code expired: {short_code}")

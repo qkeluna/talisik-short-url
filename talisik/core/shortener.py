@@ -39,14 +39,14 @@ class URLShortener:
         
         logger.info(f"URLShortener initialized with {type(self.storage).__name__} storage backend")
 
-    def _modify_downlodr_url(self, url: str, expires_at: Optional[datetime]) -> str:
+    def _modify_downlodr_url(self, url: str, expires_at: Optional[datetime], short_code: str) -> str:
         """
         Modify downlodr.com URLs to replace createdAt with expires_at in shareId
         
         Args:
             url: Original URL to potentially modify
             expires_at: Expiration datetime to use instead of createdAt
-            
+            short_code: Short code to use in the modified URL
         Returns:
             Modified URL or original URL if not a downlodr.com share-video URL
         """
@@ -76,6 +76,7 @@ class URLShortener:
                     json.dumps({
                         "url": payload['url'],
                         "expiresAt": payload['expiresAt'],
+                        "shortCode": short_code
                     }).encode('utf-8')
                 ).decode('utf-8')
                 
@@ -88,7 +89,7 @@ class URLShortener:
             except (json.JSONDecodeError, base64.binascii.Error) as decode_error:
                 logger.warning(f"Failed to decode shareId, using original URL: {decode_error}")
                 return url
-                
+                    
         except Exception as e:
             logger.error(f"Error modifying downlodr URL: {e}")
             return url
@@ -109,11 +110,11 @@ class URLShortener:
             if request.expires_hours:
                 expires_at = datetime.now(UTC) + timedelta(milliseconds=request.expires_hours)
 
-            # Modify downlodr URLs if needed
-            modified_url = self._modify_downlodr_url(request.url, expires_at)
-
             # Generate short code
             short_code = request.custom_code or self._generate_code()
+
+            # Modify downlodr URLs if needed
+            modified_url = self._modify_downlodr_url(request.url, expires_at, short_code)
             
             # Check for conflicts using storage backend
             if self.storage.exists(short_code):

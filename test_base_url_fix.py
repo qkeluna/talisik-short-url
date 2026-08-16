@@ -70,8 +70,8 @@ To use the fixed configuration in other projects:
 
 2. Or create .env file with:
    BASE_URL=https://go.downlodr.com
-   XATA_API_KEY=your_key
-   XATA_DATABASE_URL=your_url
+   STORAGE_BACKEND=supabase
+   SUPABASE_DB_URL=your_connection_string
 
 3. In your Python code:
    from talisik.core.shortener import URLShortener

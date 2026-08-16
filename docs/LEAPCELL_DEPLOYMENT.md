@@ -1,3 +1,7 @@
+> **DEPRECATED — Leapcell.io has shut down.** This guide is kept for historical
+> reference only. For current deployment, see
+> [`docs/DOKPLOY_DEPLOYMENT.md`](./DOKPLOY_DEPLOYMENT.md).
+
 # 🚀 Leapcell.io Deployment Guide
 
 **Complete guide for deploying Talisik Short URL to Leapcell.io with custom domain downlodr.com**
@@ -49,11 +53,10 @@ In your Leapcell.io dashboard, set these environment variables:
 ```env
 # Required for downlodr.com custom domain
 BASE_URL=https://your-app-url.leapcell.io  # Update after getting URL
-STORAGE_BACKEND=xata
+STORAGE_BACKEND=supabase
 
-# Xata Database (your existing credentials)
-XATA_API_KEY=xau_0LqJC20AtrvuyYP6HY8bSxjeb1cyZuh96
-XATA_DATABASE_URL=https://Khyle-Erick-Luna-s-workspace-8g1h14.us-east-1.xata.sh/db/kclick-db
+# Supabase Database (Project Settings > Database > Connection string, Transaction pooler URI)
+SUPABASE_DB_URL=postgresql://postgres.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
 
 # Production settings
 DEBUG=false

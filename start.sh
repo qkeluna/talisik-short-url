@@ -1,5 +1,5 @@
 #!/bin/bash
-# Startup script for Talisik Short URL on Leapcell.io
+# Production startup script for Talisik Short URL (used as the Dockerfile CMD)
 
 # Set environment variables for production
 export PYTHONPATH=/app

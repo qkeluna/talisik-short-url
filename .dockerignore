@@ -1,0 +1,25 @@
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.egg-info/
+build/
+dist/
+
+# Never bake secrets/local env files into the image; Dokploy injects real
+# values as container environment variables instead.
+.env
+.env.local
+env.downlodr
+env.example
+
+docs/
+tests/
+*.md

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, List
 from datetime import datetime, UTC
 import logging
-import uuid
 
 from .models import ShortURL
 from .config import TalisikConfig
@@ -106,240 +105,183 @@ class MemoryStorage(AbstractStorage):
         return sorted(urls, key=lambda x: x["created_at"], reverse=True)
 
 
-class XataStorage(AbstractStorage):
-    """Xata.io storage implementation - production ready"""
-    
+class SupabaseStorage(AbstractStorage):
+    """Supabase (Postgres) storage implementation - production ready"""
+
     def __init__(self, config: TalisikConfig):
         self.config = config
-        self._client = None
-        self._table_name = "short_urls"
-        logger.info(f"Initialized XataStorage backend for database: {config.xata_database_url}")
-    
+        self._pool = None
+        logger.info("Initialized SupabaseStorage backend")
+
     @property
-    def client(self):
-        """Lazy initialization of Xata client"""
-        if self._client is None:
+    def pool(self):
+        """Lazy initialization of the Postgres connection pool"""
+        if self._pool is None:
             try:
-                from xata import XataClient
-                # Initialize with API key and database URL
-                self._client = XataClient(
-                    api_key=self.config.xata_api_key,
-                    db_url=self.config.xata_database_url
+                from psycopg2.pool import ThreadedConnectionPool
+                self._pool = ThreadedConnectionPool(
+                    minconn=1,
+                    maxconn=10,
+                    dsn=self.config.supabase_db_url,
                 )
-                logger.info("Xata client initialized successfully")
+                logger.info("Supabase connection pool initialized successfully")
             except ImportError:
-                raise ImportError("xata package not installed. Run: pip install xata")
+                raise ImportError("psycopg2 package not installed. Run: pip install psycopg2-binary")
             except Exception as e:
-                logger.error(f"Failed to initialize Xata client: {e}")
+                logger.error(f"Failed to initialize Supabase connection pool: {e}")
                 raise
-        return self._client
-    
-    def get(self, short_code: str) -> Optional[ShortURL]:
-        """Retrieve a ShortURL by its short code using SQL"""
+        return self._pool
+
+    def _execute(self, sql: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+        """Run a query against the pool, returning rows as dicts"""
+        from psycopg2.extras import RealDictCursor
+
+        conn = self.pool.getconn()
         try:
-            # Use SQL query - this works with manually created tables
-            result = self.client.sql().query(
-                "SELECT * FROM short_urls WHERE short_code = $1",
-                [short_code]
-            )
-            
-            if result and result.get('records') and len(result['records']) > 0:
-                record = result['records'][0]
-                return self._record_to_short_url(record)
-            
-            return None
-            
+            with conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute(sql, params or [])
+                    if cur.description is None:
+                        return []
+                    return [dict(row) for row in cur.fetchall()]
+        finally:
+            self.pool.putconn(conn)
+
+    def get(self, short_code: str) -> Optional[ShortURL]:
+        """Retrieve a ShortURL by its short code"""
+        try:
+            rows = self._execute("SELECT * FROM short_urls WHERE short_code = %s", [short_code])
+            return self._record_to_short_url(rows[0]) if rows else None
         except Exception as e:
             logger.error(f"Error retrieving URL with short_code {short_code}: {e}")
             return None
-    
+
     def set(self, short_url: ShortURL) -> None:
-        """Store a ShortURL in Xata using SQL with explicit xata_id"""
+        """Store a ShortURL in Supabase; id and created_at are assigned by the database"""
         try:
-            # Generate explicit xata_id since Xata requires it
-            xata_id = str(uuid.uuid4())
-            
-            # Provide explicit xata_id and all required fields
             if short_url.expires_at:
                 sql = """
-                    INSERT INTO short_urls (xata_id, original_url, short_code, expires_at, click_count, is_active)
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                    RETURNING xata_id
+                    INSERT INTO short_urls (original_url, short_code, expires_at, click_count, is_active)
+                    VALUES (%s, %s, %s, %s, %s)
+                    RETURNING id
                 """
                 params = [
-                    xata_id,
                     short_url.original_url,
                     short_url.short_code,
-                    short_url.expires_at.isoformat(),
+                    short_url.expires_at,
                     short_url.click_count,
-                    short_url.is_active
+                    short_url.is_active,
                 ]
             else:
                 sql = """
-                    INSERT INTO short_urls (xata_id, original_url, short_code, click_count, is_active)
-                    VALUES ($1, $2, $3, $4, $5)
-                    RETURNING xata_id
+                    INSERT INTO short_urls (original_url, short_code, click_count, is_active)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
                 """
                 params = [
-                    xata_id,
                     short_url.original_url,
                     short_url.short_code,
                     short_url.click_count,
-                    short_url.is_active
+                    short_url.is_active,
                 ]
-            
-            logger.debug(f"Inserting record with explicit xata_id: {sql}")
-            logger.debug(f"Parameters: {params}")
-            
-            result = self.client.sql().query(sql, params)
-            logger.debug(f"SQL Insert result: {result}")
-            
-            # Check if insert was successful
-            if result and result.get('records') and len(result['records']) > 0:
-                record = result['records'][0]
-                if record.get('xata_id'):
-                    short_url.id = record['xata_id']
-                    logger.debug(f"Successfully stored URL with short_code: {short_url.short_code}, xata_id: {record['xata_id']}")
-                else:
-                    logger.warning(f"Insert succeeded but no xata_id returned: {result}")
+
+            logger.debug(f"Inserting record: {sql}")
+            rows = self._execute(sql, params)
+
+            if rows and rows[0].get("id"):
+                short_url.id = str(rows[0]["id"])
+                logger.debug(f"Successfully stored URL with short_code: {short_url.short_code}, id: {short_url.id}")
             else:
-                logger.error(f"SQL Insert failed: {result}")
-                raise Exception(f"SQL Insert failed: {result}")
-                
+                logger.error(f"SQL Insert failed: {rows}")
+                raise Exception(f"SQL Insert failed: {rows}")
+
         except Exception as e:
             logger.error(f"Error storing URL with short_code {short_url.short_code}: {e}")
             raise
-    
+
     def delete(self, short_code: str) -> bool:
-        """Delete a ShortURL by short code using SQL"""
+        """Delete a ShortURL by short code"""
         try:
-            # Use SQL DELETE - this works with manually created tables
-            result = self.client.sql().query(
-                "DELETE FROM short_urls WHERE short_code = $1 RETURNING xata_id",
-                [short_code]
-            )
-            
-            if result and result.get('records') and len(result['records']) > 0:
+            rows = self._execute("DELETE FROM short_urls WHERE short_code = %s RETURNING id", [short_code])
+            if rows:
                 logger.debug(f"Successfully deleted URL with short_code: {short_code}")
                 return True
-            else:
-                logger.debug(f"No URL found to delete with short_code: {short_code}")
-                return False
-                
+            logger.debug(f"No URL found to delete with short_code: {short_code}")
+            return False
         except Exception as e:
             logger.error(f"Error deleting URL with short_code {short_code}: {e}")
             return False
-    
+
     def exists(self, short_code: str) -> bool:
         """Check if a short code already exists"""
         return self.get(short_code) is not None
-    
+
     def update_click_count(self, short_code: str) -> Optional[int]:
-        """Increment click count for a short code using SQL"""
+        """Increment click count for a short code"""
         try:
-            # Use SQL UPDATE - this works with manually created tables
-            result = self.client.sql().query(
-                "UPDATE short_urls SET click_count = click_count + 1 WHERE short_code = $1 RETURNING click_count",
-                [short_code]
+            rows = self._execute(
+                "UPDATE short_urls SET click_count = click_count + 1 WHERE short_code = %s RETURNING click_count",
+                [short_code],
             )
-            
-            if result and result.get('records') and len(result['records']) > 0:
-                new_count = result['records'][0]['click_count']
+            if rows:
+                new_count = rows[0]["click_count"]
                 logger.debug(f"Updated click count for {short_code}: {new_count}")
                 return new_count
-            else:
-                logger.debug(f"No URL found to update click count for short_code: {short_code}")
-                return None
-                
+            logger.debug(f"No URL found to update click count for short_code: {short_code}")
+            return None
         except Exception as e:
             logger.error(f"Error updating click count for {short_code}: {e}")
             return None
-    
+
     def get_stats(self) -> Dict[str, int]:
-        """Get basic statistics about stored URLs using SQL"""
+        """Get basic statistics about stored URLs"""
         try:
-            # Use SQL to get stats - this works with manually created tables
-            result = self.client.sql().query(
-                "SELECT COUNT(*) as total_urls, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_urls, SUM(click_count) as total_clicks FROM short_urls"
+            rows = self._execute(
+                "SELECT COUNT(*) as total_urls, "
+                "SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_urls, "
+                "SUM(click_count) as total_clicks FROM short_urls"
             )
-            
-            if result and result.get("records") and len(result["records"]) > 0:
-                stats = result["records"][0]
+            if rows:
+                stats = rows[0]
                 return {
-                    "total_urls": int(stats.get("total_urls", 0)),
-                    "active_urls": int(stats.get("active_urls", 0)),
-                    "total_clicks": int(stats.get("total_clicks", 0))
+                    "total_urls": int(stats.get("total_urls") or 0),
+                    "active_urls": int(stats.get("active_urls") or 0),
+                    "total_clicks": int(stats.get("total_clicks") or 0),
                 }
-            
             return {"total_urls": 0, "active_urls": 0, "total_clicks": 0}
-            
         except Exception as e:
             logger.error(f"Error getting stats: {e}")
             return {"total_urls": 0, "active_urls": 0, "total_clicks": 0}
-    
+
     def get_all_urls(self) -> List[Dict[str, Any]]:
         """Get all URLs for table display with specified columns"""
         try:
-            # Use SQL to get all URLs with only the required columns
-            result = self.client.sql().query(
-                "SELECT original_url, short_code, expires_at, click_count, is_active, created_at FROM short_urls ORDER BY created_at DESC"
+            return self._execute(
+                "SELECT original_url, short_code, expires_at, click_count, is_active, created_at "
+                "FROM short_urls ORDER BY created_at DESC"
             )
-            
-            if result and result.get("records"):
-                urls = []
-                for record in result["records"]:
-                    urls.append({
-                        "original_url": record["original_url"],
-                        "short_code": record["short_code"],
-                        "expires_at": record["expires_at"],
-                        "click_count": record.get("click_count", 0),
-                        "is_active": record.get("is_active", True),
-                        "created_at": record["created_at"]
-                    })
-                return urls
-            
-            return []
-            
         except Exception as e:
             logger.error(f"Error getting all URLs: {e}")
             return []
-    
+
     def _record_to_short_url(self, record: Dict) -> ShortURL:
-        """Convert SQL query result to ShortURL object"""
-        # SQL queries return records with 'xata_id' field
-        record_id = record.get("xata_id", record.get("id", ""))
-        
+        """Convert a Postgres query result row into a ShortURL object"""
         return ShortURL(
-            id=record_id,
+            id=str(record.get("id", "")),
             original_url=record["original_url"],
             short_code=record["short_code"],
-            created_at=datetime.fromisoformat(record["created_at"].replace("Z", "+00:00")),
-            expires_at=datetime.fromisoformat(record["expires_at"].replace("Z", "+00:00")) if record.get("expires_at") else None,
+            created_at=record["created_at"],
+            expires_at=record.get("expires_at"),
             click_count=record.get("click_count", 0),
-            is_active=record.get("is_active", True)
+            is_active=record.get("is_active", True),
         )
-    
-    def _short_url_to_record(self, short_url: ShortURL) -> Dict:
-        """Convert ShortURL object to Xata record"""
-        record = {
-            "original_url": short_url.original_url,
-            "short_code": short_url.short_code,
-            "created_at": short_url.created_at.isoformat(),
-            "click_count": short_url.click_count,
-            "is_active": short_url.is_active
-        }
-        
-        if short_url.expires_at:
-            record["expires_at"] = short_url.expires_at.isoformat()
-        
-        return record
 
 
 def create_storage(config: TalisikConfig) -> AbstractStorage:
     """Factory function to create storage backend based on configuration"""
-    if config.storage_backend == "xata":
-        return XataStorage(config)
+    if config.storage_backend == "supabase":
+        return SupabaseStorage(config)
     elif config.storage_backend == "memory":
         return MemoryStorage()
     else:
-        raise ValueError(f"Unknown storage backend: {config.storage_backend}") 
+        raise ValueError(f"Unknown storage backend: {config.storage_backend}")

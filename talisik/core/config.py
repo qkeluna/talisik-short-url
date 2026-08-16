@@ -13,13 +13,12 @@ load_dotenv()
 class TalisikConfig:
     """Configuration class for Talisik Short URL service"""
     
-    # Xata Database Configuration
-    xata_api_key: str
-    xata_database_url: str
+    # Supabase (Postgres) Database Configuration
+    supabase_db_url: Optional[str] = None
     
     # Application Configuration
     base_url: str = "http://localhost:8000"
-    storage_backend: str = "memory"  # "memory" or "xata"
+    storage_backend: str = "memory"  # "memory" or "supabase"
     default_code_length: int = 7
     max_custom_code_length: int = 50
     
@@ -34,17 +33,8 @@ class TalisikConfig:
     @classmethod
     def from_env(cls) -> 'TalisikConfig':
         """Create configuration from environment variables"""
-        xata_api_key = os.getenv('XATA_API_KEY')
-        xata_database_url = os.getenv('XATA_DATABASE_URL')
-        
-        if not xata_api_key:
-            raise ValueError("XATA_API_KEY environment variable is required")
-        if not xata_database_url:
-            raise ValueError("XATA_DATABASE_URL environment variable is required")
-        
         return cls(
-            xata_api_key=xata_api_key,
-            xata_database_url=xata_database_url,
+            supabase_db_url=os.getenv('SUPABASE_DB_URL'),
             base_url=os.getenv('BASE_URL', cls.base_url),
             storage_backend=os.getenv('STORAGE_BACKEND', cls.storage_backend),
             default_code_length=int(os.getenv('DEFAULT_CODE_LENGTH', cls.default_code_length)),
@@ -63,8 +53,11 @@ class TalisikConfig:
         if self.max_custom_code_length < 1 or self.max_custom_code_length > 100:
             raise ValueError("max_custom_code_length must be between 1 and 100")
         
-        if self.storage_backend not in ["memory", "xata"]:
-            raise ValueError("storage_backend must be 'memory' or 'xata'")
+        if self.storage_backend not in ["memory", "supabase"]:
+            raise ValueError("storage_backend must be 'memory' or 'supabase'")
+        
+        if self.storage_backend == "supabase" and not self.supabase_db_url:
+            raise ValueError("SUPABASE_DB_URL environment variable is required when STORAGE_BACKEND=supabase")
 
 
 # Global configuration instance

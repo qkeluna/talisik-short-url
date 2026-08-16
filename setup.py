@@ -27,11 +27,11 @@ setup(
     install_requires=[
         "pydantic>=2.0.0",
         "python-dotenv>=1.0.0",  # For environment variables
-        "xata>=1.0.0",           # Xata Python client
+        "psycopg2-binary>=2.9.0",  # Supabase (Postgres) client
     ],
     extras_require={
         "api": ["fastapi>=0.100.0", "uvicorn[standard]>=0.20.0"],
         "dev": ["pytest>=7.0.0", "pytest-cov>=4.0.0", "black>=23.0.0", "ruff>=0.1.0"],
-        "xata": ["xata>=1.0.0"],  # Optional Xata dependency group
+        "supabase": ["psycopg2-binary>=2.9.0"],  # Optional Supabase dependency group
     },
 ) 

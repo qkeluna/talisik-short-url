@@ -122,7 +122,7 @@ class URLShortener:
             
             # Create short URL object using modified URL
             short_url_obj = ShortURL(
-                id=secrets.token_urlsafe(16),  # Will be overridden by Xata if using XataStorage
+                id=secrets.token_urlsafe(16),  # Will be overridden by SupabaseStorage
                 original_url=modified_url,  # Use modified URL
                 short_code=short_code,
                 created_at=datetime.now(),

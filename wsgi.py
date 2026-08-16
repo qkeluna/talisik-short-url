@@ -1,6 +1,6 @@
 """
-WSGI/ASGI adapter for Talisik Short URL FastAPI application
-This file is required for deployment to platforms like Leapcell.io
+WSGI/ASGI adapter for Talisik Short URL FastAPI application.
+Entrypoint used by gunicorn/uvicorn on any container-based host (e.g. Dokploy).
 """
 
 from api.main import app

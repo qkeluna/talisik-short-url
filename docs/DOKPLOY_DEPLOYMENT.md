@@ -8,10 +8,11 @@ Let's Encrypt TLS for your domain.
 ## Prerequisites
 
 - A running Dokploy instance with access to its dashboard.
-- A Supabase project with `supabase/schema.sql` already applied (see the main
-  README / migration notes for that step).
-- Your Supabase **Transaction pooler** connection string
-  (Project Settings > Database > Connection string), port `6543`.
+- A Supabase project with `supabase/schema.sql` already applied, including the
+  `talisik_app` role it creates (see the main README / migration notes).
+- The Supabase **Transaction pooler** connection string for the `talisik_app`
+  role (not `postgres`) — Project Settings > Database > Connection string,
+  select role `talisik_app`, port `6543`.
 
 ## 1. Create the application
 
@@ -35,8 +36,10 @@ placeholder templates only, and `env.downlodr` is gitignored on purpose):
 BASE_URL=https://go.downlodr.com
 STORAGE_BACKEND=supabase
 
-# Supabase transaction pooler URI (contains the DB password — dashboard-only)
-SUPABASE_DB_URL=postgresql://postgres.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
+# Supabase transaction pooler URI for the scoped `talisik_app` role (never
+# use the `postgres` admin role here — see supabase/schema.sql for why).
+SUPABASE_DB_URL=postgresql://talisik_app.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
+SUPABASE_DB_SCHEMA=public
 
 CORS_ORIGINS=https://go.downlodr.com,https://downlodr.com,https://www.downlodr.com
 

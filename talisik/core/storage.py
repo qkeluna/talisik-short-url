@@ -111,7 +111,7 @@ class SupabaseStorage(AbstractStorage):
     def __init__(self, config: TalisikConfig):
         self.config = config
         self._pool = None
-        logger.info("Initialized SupabaseStorage backend")
+        logger.info(f"Initialized SupabaseStorage backend (schema={config.supabase_db_schema})")
 
     @property
     def pool(self):
@@ -132,7 +132,19 @@ class SupabaseStorage(AbstractStorage):
                 raise
         return self._pool
 
-    def _execute(self, sql: str, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+    @property
+    def _table(self):
+        """Schema-qualified identifier for the short_urls table.
+
+        Queries schema-qualify explicitly rather than relying on a connection
+        `search_path`, so the app role used only needs USAGE on this one
+        schema and CRUD on this one table -- it never has to be granted (or
+        default to) visibility into any other schema the DSN's role can see.
+        """
+        from psycopg2 import sql
+        return sql.Identifier(self.config.supabase_db_schema, "short_urls")
+
+    def _execute(self, query, params: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
         """Run a query against the pool, returning rows as dicts"""
         from psycopg2.extras import RealDictCursor
 
@@ -140,7 +152,7 @@ class SupabaseStorage(AbstractStorage):
         try:
             with conn:
                 with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                    cur.execute(sql, params or [])
+                    cur.execute(query, params or [])
                     if cur.description is None:
                         return []
                     return [dict(row) for row in cur.fetchall()]
@@ -149,8 +161,12 @@ class SupabaseStorage(AbstractStorage):
 
     def get(self, short_code: str) -> Optional[ShortURL]:
         """Retrieve a ShortURL by its short code"""
+        from psycopg2 import sql
         try:
-            rows = self._execute("SELECT * FROM short_urls WHERE short_code = %s", [short_code])
+            rows = self._execute(
+                sql.SQL("SELECT * FROM {table} WHERE short_code = %s").format(table=self._table),
+                [short_code],
+            )
             return self._record_to_short_url(rows[0]) if rows else None
         except Exception as e:
             logger.error(f"Error retrieving URL with short_code {short_code}: {e}")
@@ -158,13 +174,13 @@ class SupabaseStorage(AbstractStorage):
 
     def set(self, short_url: ShortURL) -> None:
         """Store a ShortURL in Supabase; id and created_at are assigned by the database"""
+        from psycopg2 import sql
         try:
             if short_url.expires_at:
-                sql = """
-                    INSERT INTO short_urls (original_url, short_code, expires_at, click_count, is_active)
-                    VALUES (%s, %s, %s, %s, %s)
-                    RETURNING id
-                """
+                query = sql.SQL(
+                    "INSERT INTO {table} (original_url, short_code, expires_at, click_count, is_active) "
+                    "VALUES (%s, %s, %s, %s, %s) RETURNING id"
+                ).format(table=self._table)
                 params = [
                     short_url.original_url,
                     short_url.short_code,
@@ -173,11 +189,10 @@ class SupabaseStorage(AbstractStorage):
                     short_url.is_active,
                 ]
             else:
-                sql = """
-                    INSERT INTO short_urls (original_url, short_code, click_count, is_active)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING id
-                """
+                query = sql.SQL(
+                    "INSERT INTO {table} (original_url, short_code, click_count, is_active) "
+                    "VALUES (%s, %s, %s, %s) RETURNING id"
+                ).format(table=self._table)
                 params = [
                     short_url.original_url,
                     short_url.short_code,
@@ -185,8 +200,7 @@ class SupabaseStorage(AbstractStorage):
                     short_url.is_active,
                 ]
 
-            logger.debug(f"Inserting record: {sql}")
-            rows = self._execute(sql, params)
+            rows = self._execute(query, params)
 
             if rows and rows[0].get("id"):
                 short_url.id = str(rows[0]["id"])
@@ -201,8 +215,12 @@ class SupabaseStorage(AbstractStorage):
 
     def delete(self, short_code: str) -> bool:
         """Delete a ShortURL by short code"""
+        from psycopg2 import sql
         try:
-            rows = self._execute("DELETE FROM short_urls WHERE short_code = %s RETURNING id", [short_code])
+            rows = self._execute(
+                sql.SQL("DELETE FROM {table} WHERE short_code = %s RETURNING id").format(table=self._table),
+                [short_code],
+            )
             if rows:
                 logger.debug(f"Successfully deleted URL with short_code: {short_code}")
                 return True
@@ -218,9 +236,12 @@ class SupabaseStorage(AbstractStorage):
 
     def update_click_count(self, short_code: str) -> Optional[int]:
         """Increment click count for a short code"""
+        from psycopg2 import sql
         try:
             rows = self._execute(
-                "UPDATE short_urls SET click_count = click_count + 1 WHERE short_code = %s RETURNING click_count",
+                sql.SQL(
+                    "UPDATE {table} SET click_count = click_count + 1 WHERE short_code = %s RETURNING click_count"
+                ).format(table=self._table),
                 [short_code],
             )
             if rows:
@@ -235,11 +256,14 @@ class SupabaseStorage(AbstractStorage):
 
     def get_stats(self) -> Dict[str, int]:
         """Get basic statistics about stored URLs"""
+        from psycopg2 import sql
         try:
             rows = self._execute(
-                "SELECT COUNT(*) as total_urls, "
-                "SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_urls, "
-                "SUM(click_count) as total_clicks FROM short_urls"
+                sql.SQL(
+                    "SELECT COUNT(*) as total_urls, "
+                    "SUM(CASE WHEN is_active THEN 1 ELSE 0 END) as active_urls, "
+                    "SUM(click_count) as total_clicks FROM {table}"
+                ).format(table=self._table)
             )
             if rows:
                 stats = rows[0]
@@ -255,10 +279,13 @@ class SupabaseStorage(AbstractStorage):
 
     def get_all_urls(self) -> List[Dict[str, Any]]:
         """Get all URLs for table display with specified columns"""
+        from psycopg2 import sql
         try:
             return self._execute(
-                "SELECT original_url, short_code, expires_at, click_count, is_active, created_at "
-                "FROM short_urls ORDER BY created_at DESC"
+                sql.SQL(
+                    "SELECT original_url, short_code, expires_at, click_count, is_active, created_at "
+                    "FROM {table} ORDER BY created_at DESC"
+                ).format(table=self._table)
             )
         except Exception as e:
             logger.error(f"Error getting all URLs: {e}")

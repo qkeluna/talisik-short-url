@@ -15,6 +15,7 @@ class TalisikConfig:
     
     # Supabase (Postgres) Database Configuration
     supabase_db_url: Optional[str] = None
+    supabase_db_schema: str = "public"  # schema owning short_urls; use a dedicated schema when sharing a project
     
     # Application Configuration
     base_url: str = "http://localhost:8000"
@@ -35,6 +36,7 @@ class TalisikConfig:
         """Create configuration from environment variables"""
         return cls(
             supabase_db_url=os.getenv('SUPABASE_DB_URL'),
+            supabase_db_schema=os.getenv('SUPABASE_DB_SCHEMA', cls.supabase_db_schema),
             base_url=os.getenv('BASE_URL', cls.base_url),
             storage_backend=os.getenv('STORAGE_BACKEND', cls.storage_backend),
             default_code_length=int(os.getenv('DEFAULT_CODE_LENGTH', cls.default_code_length)),

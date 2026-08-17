@@ -55,8 +55,8 @@ In your Leapcell.io dashboard, set these environment variables:
 BASE_URL=https://your-app-url.leapcell.io  # Update after getting URL
 STORAGE_BACKEND=supabase
 
-# Supabase Database (Project Settings > Database > Connection string, Transaction pooler URI)
-SUPABASE_DB_URL=postgresql://postgres.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
+# Supabase Database (Transaction pooler URI, scoped `talisik_app` role — never `postgres`)
+SUPABASE_DB_URL=postgresql://talisik_app.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
 
 # Production settings
 DEBUG=false

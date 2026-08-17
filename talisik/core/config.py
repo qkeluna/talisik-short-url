@@ -15,7 +15,7 @@ class TalisikConfig:
     
     # Supabase (Postgres) Database Configuration
     supabase_db_url: Optional[str] = None
-    supabase_db_schema: str = "public"  # schema owning short_urls; use a dedicated schema when sharing a project
+    supabase_db_schema: str = "talisik"  # dedicated schema; avoids colliding with existing project tables
     
     # Application Configuration
     base_url: str = "http://localhost:8000"

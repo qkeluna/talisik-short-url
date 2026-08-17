@@ -1,12 +1,17 @@
 -- Talisik Short URL - Supabase schema
 -- Run this once in the Supabase SQL editor (or via `supabase db query`) before
--- setting STORAGE_BACKEND=supabase. Works for both a dedicated project and a
--- project shared with other apps (adjust the schema name below if sharing).
+-- setting STORAGE_BACKEND=supabase. Safe to re-run (idempotent) against a
+-- project where it already ran -- see the notes on each statement below.
+--
+-- Uses a dedicated `talisik` schema rather than `public` specifically to
+-- avoid ever colliding with a pre-existing `short_urls` table (name reuse,
+-- different columns, existing RLS policies) if this Supabase project is
+-- shared with other apps. If you want `public` instead, replace every
+-- `talisik.` below with `public.` and set SUPABASE_DB_SCHEMA=public.
 
--- Change this if this project is shared with other apps and you want
--- isolation, e.g. `create schema if not exists talisik;` and replace
--- `public` below with `talisik`. Set SUPABASE_DB_SCHEMA to match.
-create table if not exists public.short_urls (
+create schema if not exists talisik;
+
+create table if not exists talisik.short_urls (
     id uuid primary key default gen_random_uuid(),
     original_url text not null,
     short_code text not null unique,
@@ -16,18 +21,28 @@ create table if not exists public.short_urls (
     is_active boolean not null default true
 );
 
-create index if not exists idx_short_urls_short_code on public.short_urls (short_code);
+create index if not exists idx_short_urls_short_code on talisik.short_urls (short_code);
 
-alter table public.short_urls enable row level security;
+alter table talisik.short_urls enable row level security;
 
 -- Dedicated login role for this app. Never point SUPABASE_DB_URL at the
 -- `postgres` admin role -- a compromise of this public URL shortener would
 -- otherwise expose every table in the project and bypass RLS everywhere.
--- This role can only see this one table.
-create role talisik_app with login password 'REPLACE_WITH_A_STRONG_PASSWORD';
+-- This role can only see this one table in this one schema.
+--
+-- CREATE ROLE isn't idempotent in Postgres, so guard it -- re-running this
+-- script (e.g. against a project where it already ran) must not error out
+-- partway through, and must not touch the role's existing password.
+do $$
+begin
+    if not exists (select from pg_roles where rolname = 'talisik_app') then
+        create role talisik_app with login password 'REPLACE_WITH_A_STRONG_PASSWORD';
+    end if;
+end
+$$;
 
-grant usage on schema public to talisik_app;
-grant select, insert, update, delete on public.short_urls to talisik_app;
+grant usage on schema talisik to talisik_app;
+grant select, insert, update, delete on talisik.short_urls to talisik_app;
 
 -- talisik_app is not the table owner, so RLS applies to it too (owners
 -- bypass RLS by default; non-owner roles are denied by default once RLS is
@@ -36,7 +51,12 @@ grant select, insert, update, delete on public.short_urls to talisik_app;
 -- here exists only to keep talisik_app from ever seeing rows through some
 -- other path (e.g. the PostgREST Data API, if this schema is ever exposed
 -- there to anon/authenticated).
-create policy "talisik_app full access" on public.short_urls
+--
+-- CREATE POLICY isn't idempotent either; drop-then-create is the standard
+-- re-runnable pattern and is safe here (no rows are affected, only the
+-- access-control object).
+drop policy if exists "talisik_app full access" on talisik.short_urls;
+create policy "talisik_app full access" on talisik.short_urls
     for all
     to talisik_app
     using (true)
@@ -47,4 +67,4 @@ create policy "talisik_app full access" on public.short_urls
 -- postgresql://talisik_app.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
 -- Confirm the exact pooler username format for your project (it's role.project-ref)
 -- via the Supabase dashboard's connection string picker -- it lets you choose
--- role there directly.
+-- role there directly. Also set SUPABASE_DB_SCHEMA=talisik.

@@ -39,7 +39,7 @@ STORAGE_BACKEND=supabase
 # Supabase transaction pooler URI for the scoped `talisik_app` role (never
 # use the `postgres` admin role here — see supabase/schema.sql for why).
 SUPABASE_DB_URL=postgresql://talisik_app.your-project-ref:your-password@aws-0-region.pooler.supabase.com:6543/postgres
-SUPABASE_DB_SCHEMA=public
+SUPABASE_DB_SCHEMA=talisik
 
 CORS_ORIGINS=https://go.downlodr.com,https://downlodr.com,https://www.downlodr.com
 
